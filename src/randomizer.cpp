@@ -42,7 +42,7 @@ processorArchitecture='*' publicKeyToken='6595b64144ccf1df' language='*'\"")
 #define CB_STYLE (WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX)
 
 #define WND_WIDTH 512
-#define WND_HEIGHT 405
+#define WND_HEIGHT 470
 
 enum
 {
@@ -64,6 +64,9 @@ enum
 };
 
 static Randomizer *g_wnd = NULL;
+
+static const int cost_exp_modifiers[] = {70, 85, 100, 115, 130};
+static const int cost_exp_modifiers_ynk[] = {85, 92, 100, 107, 115};
 
 LRESULT CALLBACK Randomizer::WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
@@ -347,30 +350,36 @@ void Randomizer::randomize_puppets(void *data, size_t len)
     }
 }
 
-void Randomizer::randomize_trainer(void *data, const void *rand_data)
+void Randomizer::randomize_trainer(void *src, const void *rand_data)
 {
-    char *buf = (char*)data + 0x2C;
+    char *buf = (char*)src + 0x2C;
     char *endbuf = buf + (6 * PUPPET_SIZE_BOX);
-    std::shuffle(valid_puppet_ids_.begin(), valid_puppet_ids_.end(), gen_);
     std::uniform_int_distribution<int> iv(0, 0xf);
     std::uniform_int_distribution<int> ev(0, 64);
+    std::uniform_int_distribution<int> id(0, valid_puppet_ids_.size() - 1);
+    std::uniform_int_distribution<int> style(0, 3);
     std::bernoulli_distribution ability(0.5);
-    int index = 0;
 
+    unsigned int max_lvl = 0;
+    double lvl_mul = double(level_mod_) / 100.0;
     for(char *pos = buf; pos < endbuf; pos += PUPPET_SIZE_BOX)
     {
         decrypt_puppet(pos, rand_data, PUPPET_SIZE);
 
         Puppet puppet(pos, false);
-        if(puppet.puppet_id != 0)
+        unsigned int lvl = level_from_exp(puppets_[puppet.puppet_id], puppet.exp);
+        if(lvl > max_lvl)
+            max_lvl = lvl;
+        if(((puppet.puppet_id == 0) && rand_full_party_) || ((puppet.puppet_id != 0) && rand_trainers_))
         {
-            PuppetData& data(puppets_[valid_puppet_ids_[index++]]);
+            PuppetData& data(puppets_[valid_puppet_ids_[id(gen_)]]);
 
+            puppet.style_index = style(gen_);
             while(data.styles[puppet.style_index].style_type == 0)
             {
-                --puppet.style_index;
                 if(puppet.style_index == 0)
                     break;
+                --puppet.style_index;
             }
 
             std::vector<unsigned int> skills(data.styles[puppet.style_index].skillset.begin(), data.styles[puppet.style_index].skillset.end());
@@ -404,8 +413,13 @@ void Randomizer::randomize_trainer(void *data, const void *rand_data)
 
             if(puppet.puppet_id < puppet_names_.size())
                 puppet.set_puppet_nickname(puppet_names_[puppet.puppet_id]);
-            puppet.write(pos, false);
+
+            if(puppet.exp == 0)
+                lvl = max_lvl;
         }
+
+        puppet.exp = exp_for_level(puppets_[puppet.puppet_id], (unsigned int)(double(lvl) * lvl_mul));
+        puppet.write(pos, false);
 
         encrypt_puppet(pos, rand_data, PUPPET_SIZE);
     }
@@ -491,8 +505,9 @@ Randomizer::Randomizer(HINSTANCE hInstance)
 
     grp_dir_ = CreateWindowW(L"Button", L"Game Folder", WS_CHILD | WS_VISIBLE | BS_GROUPBOX | WS_GROUP, 10, 10, rect.right - 20, 55, hwnd_, NULL, hInstance, NULL);
     grp_rand_ = CreateWindowW(L"Button", L"Randomization", WS_CHILD | WS_VISIBLE | BS_GROUPBOX | WS_GROUP, 10, 75, rect.right - 20, 155, hwnd_, NULL, hInstance, NULL);
-    grp_seed_ = CreateWindowW(L"Button", L"Seed", WS_CHILD | WS_VISIBLE | BS_GROUPBOX | WS_GROUP, 10, 240, rect.right - 20, 55, hwnd_, NULL, hInstance, NULL);
-    bn_Randomize_ = CreateWindowW(L"Button", L"Randomize", WS_CHILD | WS_VISIBLE | BS_DEFPUSHBUTTON, (rect.right / 2) - 50, 305, 100, 30, hwnd_, (HMENU)ID_RANDOMIZE, hInstance, NULL);
+    grp_other_ = CreateWindowW(L"Button", L"Other", WS_CHILD | WS_VISIBLE | BS_GROUPBOX | WS_GROUP, 10, 240, rect.right - 20, 55, hwnd_, NULL, hInstance, NULL);
+    grp_seed_ = CreateWindowW(L"Button", L"Seed", WS_CHILD | WS_VISIBLE | BS_GROUPBOX | WS_GROUP, 10, 305, rect.right - 20, 55, hwnd_, NULL, hInstance, NULL);
+    bn_Randomize_ = CreateWindowW(L"Button", L"Randomize", WS_CHILD | WS_VISIBLE | BS_DEFPUSHBUTTON, (rect.right / 2) - 50, 370, 100, 30, hwnd_, (HMENU)ID_RANDOMIZE, hInstance, NULL);
     progress_bar_ = CreateWindowW(PROGRESS_CLASSW, NULL, WS_CHILD | WS_VISIBLE, 10, rect.bottom - 30, rect.right - 20, 20, hwnd_, NULL, hInstance, NULL);
     SendMessageW(progress_bar_, PBM_SETSTEP, 1, 0);
 
@@ -500,10 +515,15 @@ Randomizer::Randomizer(HINSTANCE hInstance)
     wnd_dir_ = CreateWindowExW(WS_EX_CLIENTEDGE, L"Edit", L"C:\\game\\FocasLens\\Œ¶‘zlŒ`‰‰•‘", WS_CHILD | WS_VISIBLE, 20, 30, rect.right - 90, 25, hwnd_, NULL, hInstance, NULL);
     bn_browse_ = CreateWindowW(L"Button", L"Browse", WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON, rect.right - 65, 28, 65, 29, hwnd_, (HMENU)ID_BROWSE, hInstance, NULL);
 
+    GetClientRect(grp_other_, &rect);
+    wnd_trainerlvl_ = CreateWindowExW(WS_EX_CLIENTEDGE, L"Edit", L"100", WS_CHILD | WS_VISIBLE | ES_NUMBER, 20, 260, 50, 25, hwnd_, NULL, hInstance, NULL);
+    tx_trainerlvl_ = CreateWindowW(L"Static", L"% trainer level adjustment", WS_CHILD | WS_VISIBLE | SS_WORDELLIPSIS, 75, 262, (rect.right / 2) - 75, 23, hwnd_, NULL, hInstance, NULL);
+    cb_trainer_party_ = CreateWindowW(L"Button", L"Full trainer party", CB_STYLE, (rect.right / 2) + 20, 263, (rect.right / 2) - 25, 15, hwnd_, NULL, hInstance, NULL);
+
     GetClientRect(grp_seed_, &rect);
     unsigned int seed = (unsigned int)std::chrono::system_clock::now().time_since_epoch().count();
-    wnd_seed_ = CreateWindowExW(WS_EX_CLIENTEDGE, L"Edit", std::to_wstring(seed).c_str(), WS_CHILD | WS_VISIBLE | ES_NUMBER, 20, 260, rect.right - 125, 25, hwnd_, NULL, hInstance, NULL);
-    bn_generate_ = CreateWindowW(L"Button", L"Generate", WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON, rect.right - 100, 258, 100, 29, hwnd_, (HMENU)ID_GENERATE, hInstance, NULL);
+    wnd_seed_ = CreateWindowExW(WS_EX_CLIENTEDGE, L"Edit", std::to_wstring(seed).c_str(), WS_CHILD | WS_VISIBLE | ES_NUMBER, 20, 325, rect.right - 125, 25, hwnd_, NULL, hInstance, NULL);
+    bn_generate_ = CreateWindowW(L"Button", L"Generate", WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON, rect.right - 100, 323, 100, 29, hwnd_, (HMENU)ID_GENERATE, hInstance, NULL);
 
     GetClientRect(grp_rand_, &rect);
     int x = 25;
@@ -537,6 +557,8 @@ Randomizer::Randomizer(HINSTANCE hInstance)
     set_tooltip(cb_skill_sp_, L"Randomize skill SP");
     set_tooltip(cb_skill_prio_, L"Randomize skill priority");
     set_tooltip(cb_skill_type_, L"Randomize skill type (focus or spread. does not affect status skills)");
+    set_tooltip(wnd_trainerlvl_, L"Trainer puppets will have their level adjusted to the specified percentage\r\n100% = no change");
+    set_tooltip(cb_trainer_party_, L"Trainers will always have 6 puppets.\r\nnew puppets will be randomly generated at the same level as the highest level existing puppet");
 
     NONCLIENTMETRICSW ncm = {0};
     ncm.cbSize = sizeof(ncm);
@@ -598,12 +620,20 @@ bool Randomizer::randomize()
     unsigned int seed = std::stoul(seedtext);
     gen_.seed(seed);
 
+    level_mod_ = std::stol(get_window_text(wnd_trainerlvl_));
+    if(level_mod_ <= 0)
+    {
+        error(L"Invalid trainer level modifier. Must be a positive integer greater than zero");
+        return false;
+    }
+
     rand_skillsets_ = (SendMessageW(cb_skills_, BM_GETCHECK, 0, 0) == BST_CHECKED);
     rand_stats_ = (SendMessageW(cb_stats_, BM_GETCHECK, 0, 0) == BST_CHECKED);
     rand_trainers_ = (SendMessageW(cb_trainers_, BM_GETCHECK, 0, 0) == BST_CHECKED);
     rand_types_ = (SendMessageW(cb_types_, BM_GETCHECK, 0, 0) == BST_CHECKED);
     rand_compat_ = (SendMessageW(cb_compat_, BM_GETCHECK, 0, 0) == BST_CHECKED);
     rand_abilities_ = (SendMessageW(cb_abilities_, BM_GETCHECK, 0, 0) == BST_CHECKED);
+    rand_full_party_ = (SendMessageW(cb_trainer_party_, BM_GETCHECK, 0, 0) == BST_CHECKED);
     rand_puppets_ = rand_skillsets_ || rand_stats_ || rand_types_ || rand_abilities_;
     rand_skill_element_ = (SendMessageW(cb_skill_element_, BM_GETCHECK, 0, 0) == BST_CHECKED);
     rand_skill_power_ = (SendMessageW(cb_skill_power_, BM_GETCHECK, 0, 0) == BST_CHECKED);
@@ -768,7 +798,7 @@ bool Randomizer::randomize()
         }
     }
 
-    if(!rand_trainers_)
+    if(!rand_trainers_ && !rand_full_party_ && (level_mod_ == 100))
     {
         std::wstring path = filepath + (is_ynk_ ? L"/dat/gn_dat6.arc" : L"/dat/gn_dat3.arc");
         if(!archive.save(path))
@@ -940,4 +970,29 @@ void Randomizer::encrypt_puppet(void *src, const void *rand_data, std::size_t le
 void Randomizer::error(const wchar_t * msg)
 {
     MessageBoxW(hwnd_, msg, L"Error", MB_OK | MB_ICONERROR);
+}
+
+unsigned int Randomizer::level_from_exp(const PuppetData& data, unsigned int exp) const
+{
+    int ret = 1;
+    while(exp_for_level(data, ret + 1) <= exp)
+        ++ret;
+
+    if(ret > 100)
+        ret = 100;
+    return ret;
+}
+
+unsigned int Randomizer::exp_for_level(const PuppetData& data, unsigned int level) const
+{
+    if(level <= 1)
+        return 0;
+
+    const int *mods = cost_exp_modifiers;
+    if(is_ynk_)
+        mods = cost_exp_modifiers_ynk;
+
+    unsigned int ret = level * level * level * mods[data.cost] / 100;
+
+    return ret;
 }

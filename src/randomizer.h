@@ -36,6 +36,7 @@ private:
     HWND hwnd_;
     HWND grp_dir_;
     HWND grp_rand_;
+    HWND grp_other_;
     HWND grp_seed_;
     HWND bn_Randomize_;
     HWND wnd_dir_;
@@ -55,6 +56,9 @@ private:
     HWND cb_skill_prio_;
     HWND cb_skill_type_;
     HWND progress_bar_;
+    HWND tx_trainerlvl_;
+    HWND wnd_trainerlvl_;
+    HWND cb_trainer_party_;
 
     HFONT hfont_;
 
@@ -77,14 +81,19 @@ private:
     bool rand_skill_sp_;
     bool rand_skill_prio_;
     bool rand_skill_type_;
+    bool rand_full_party_;
+    int level_mod_;
 
 
     void randomize_puppets(void *data, size_t len);
-    void randomize_trainer(void *data, const void *rand_data);
+    void randomize_trainer(void *src, const void *rand_data);
     void randomize_skills(void *data, size_t len);
 
     void decrypt_puppet(void *src, const void *rand_data, std::size_t len);
     void encrypt_puppet(void *src, const void *rand_data, std::size_t len);
+
+    unsigned int level_from_exp(const PuppetData& data, unsigned int exp) const;
+    unsigned int exp_for_level(const PuppetData& data, unsigned int level) const;
 
     void error(const wchar_t *msg);
 
