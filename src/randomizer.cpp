@@ -42,7 +42,7 @@ processorArchitecture='*' publicKeyToken='6595b64144ccf1df' language='*'\"")
 #define CB_STYLE (WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX)
 
 #define WND_WIDTH 512
-#define WND_HEIGHT 470
+#define WND_HEIGHT 500
 
 enum
 {
@@ -60,7 +60,9 @@ enum
     ID_SKILL_ACC,
     ID_SKILL_SP,
     ID_SKILL_PRIO,
-    ID_SKILL_TYPE
+    ID_SKILL_TYPE,
+    ID_WILD_PUPPETS,
+    ID_WILD_STYLE
 };
 
 static Randomizer *g_wnd = NULL;
@@ -490,6 +492,88 @@ void Randomizer::randomize_skills(void * data, size_t len)
     }
 }
 
+void Randomizer::randomize_mad_file(void *data)
+{
+    char *buf = (char*)data;
+
+    if(rand_wild_puppets_)
+        std::shuffle(valid_puppet_ids_.begin(), valid_puppet_ids_.end(), gen_);
+    int index = 0;
+
+    if(rand_wild_puppets_ || rand_wild_style_)
+    {
+        uint16_t *puppet_table = (uint16_t*)&buf[0x0E];
+        char *style_table = &buf[0x2C];
+
+        for(int i = 0; i < 10; ++i)
+        {
+            if(!puppet_table[i])
+                continue;
+
+            if(rand_wild_puppets_)
+                puppet_table[i] = valid_puppet_ids_[index++];
+
+            const PuppetData& puppet(puppets_[puppet_table[i]]);
+            if(rand_wild_style_ || !puppet.styles[style_table[i]].style_type)
+            {
+                int max_index = 0;
+                for(int j = 0; j < 4; ++j)
+                {
+                    if(puppet.styles[j].style_type > 0)
+                        max_index = j;
+                    else
+                        break;
+                }
+
+                style_table[i] = std::uniform_int_distribution<int>(0, max_index)(gen_);
+            }
+        }
+
+        puppet_table = (uint16_t*)&buf[0x40];
+        style_table = &buf[0x4F];
+        for(int i = 0; i < 5; ++i)
+        {
+            if(!puppet_table[i])
+                continue;
+
+            if(rand_wild_puppets_)
+                puppet_table[i] = valid_puppet_ids_[index++];
+
+            const PuppetData& puppet(puppets_[puppet_table[i]]);
+            if(rand_wild_style_ || !puppet.styles[style_table[i]].style_type)
+            {
+                int max_index = 0;
+                for(int j = 0; j < 4; ++j)
+                {
+                    if(puppet.styles[j].style_type > 0)
+                        max_index = j;
+                    else
+                        break;
+                }
+
+                style_table[i] = std::uniform_int_distribution<int>(0, max_index)(gen_);
+            }
+        }
+    }
+
+    if(level_mod_ != 100)
+    {
+        double mod = double(level_mod_) / 100.0;
+
+        char *lvls = &buf[0x22];
+        for(int i = 0; i < 10; ++i)
+        {
+            lvls[i] = (char)(double(lvls[i]) * mod);
+        }
+
+        lvls = &buf[0x4A];
+        for(int i = 0; i < 5; ++i)
+        {
+            lvls[i] = (char)(double(lvls[i]) * mod);
+        }
+    }
+}
+
 /* raw winapi so we don't have any dependencies */
 Randomizer::Randomizer(HINSTANCE hInstance)
 {
@@ -504,10 +588,10 @@ Randomizer::Randomizer(HINSTANCE hInstance)
     GetClientRect(hwnd_, &rect);
 
     grp_dir_ = CreateWindowW(L"Button", L"Game Folder", WS_CHILD | WS_VISIBLE | BS_GROUPBOX | WS_GROUP, 10, 10, rect.right - 20, 55, hwnd_, NULL, hInstance, NULL);
-    grp_rand_ = CreateWindowW(L"Button", L"Randomization", WS_CHILD | WS_VISIBLE | BS_GROUPBOX | WS_GROUP, 10, 75, rect.right - 20, 155, hwnd_, NULL, hInstance, NULL);
-    grp_other_ = CreateWindowW(L"Button", L"Other", WS_CHILD | WS_VISIBLE | BS_GROUPBOX | WS_GROUP, 10, 240, rect.right - 20, 55, hwnd_, NULL, hInstance, NULL);
-    grp_seed_ = CreateWindowW(L"Button", L"Seed", WS_CHILD | WS_VISIBLE | BS_GROUPBOX | WS_GROUP, 10, 305, rect.right - 20, 55, hwnd_, NULL, hInstance, NULL);
-    bn_Randomize_ = CreateWindowW(L"Button", L"Randomize", WS_CHILD | WS_VISIBLE | BS_DEFPUSHBUTTON, (rect.right / 2) - 50, 370, 100, 30, hwnd_, (HMENU)ID_RANDOMIZE, hInstance, NULL);
+    grp_rand_ = CreateWindowW(L"Button", L"Randomization", WS_CHILD | WS_VISIBLE | BS_GROUPBOX | WS_GROUP, 10, 75, rect.right - 20, 185, hwnd_, NULL, hInstance, NULL);
+    grp_other_ = CreateWindowW(L"Button", L"Other", WS_CHILD | WS_VISIBLE | BS_GROUPBOX | WS_GROUP, 10, 270, rect.right - 20, 55, hwnd_, NULL, hInstance, NULL);
+    grp_seed_ = CreateWindowW(L"Button", L"Seed", WS_CHILD | WS_VISIBLE | BS_GROUPBOX | WS_GROUP, 10, 335, rect.right - 20, 55, hwnd_, NULL, hInstance, NULL);
+    bn_Randomize_ = CreateWindowW(L"Button", L"Randomize", WS_CHILD | WS_VISIBLE | BS_DEFPUSHBUTTON, (rect.right / 2) - 50, 400, 100, 30, hwnd_, (HMENU)ID_RANDOMIZE, hInstance, NULL);
     progress_bar_ = CreateWindowW(PROGRESS_CLASSW, NULL, WS_CHILD | WS_VISIBLE, 10, rect.bottom - 30, rect.right - 20, 20, hwnd_, NULL, hInstance, NULL);
     SendMessageW(progress_bar_, PBM_SETSTEP, 1, 0);
 
@@ -516,14 +600,14 @@ Randomizer::Randomizer(HINSTANCE hInstance)
     bn_browse_ = CreateWindowW(L"Button", L"Browse", WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON, rect.right - 65, 28, 65, 29, hwnd_, (HMENU)ID_BROWSE, hInstance, NULL);
 
     GetClientRect(grp_other_, &rect);
-    wnd_trainerlvl_ = CreateWindowExW(WS_EX_CLIENTEDGE, L"Edit", L"100", WS_CHILD | WS_VISIBLE | ES_NUMBER, 20, 260, 50, 25, hwnd_, NULL, hInstance, NULL);
-    tx_trainerlvl_ = CreateWindowW(L"Static", L"% trainer level adjustment", WS_CHILD | WS_VISIBLE | SS_WORDELLIPSIS, 75, 262, (rect.right / 2) - 75, 23, hwnd_, NULL, hInstance, NULL);
-    cb_trainer_party_ = CreateWindowW(L"Button", L"Full trainer party", CB_STYLE, (rect.right / 2) + 20, 263, (rect.right / 2) - 25, 15, hwnd_, NULL, hInstance, NULL);
+    wnd_lvladjust_ = CreateWindowExW(WS_EX_CLIENTEDGE, L"Edit", L"100", WS_CHILD | WS_VISIBLE | ES_NUMBER, 20, 290, 50, 25, hwnd_, NULL, hInstance, NULL);
+    tx_lvladjust_ = CreateWindowW(L"Static", L"% enemy level adjustment", WS_CHILD | WS_VISIBLE | SS_WORDELLIPSIS, 75, 292, (rect.right / 2) - 75, 23, hwnd_, NULL, hInstance, NULL);
+    cb_trainer_party_ = CreateWindowW(L"Button", L"Full trainer party", CB_STYLE, (rect.right / 2) + 20, 293, (rect.right / 2) - 25, 15, hwnd_, NULL, hInstance, NULL);
 
     GetClientRect(grp_seed_, &rect);
     unsigned int seed = (unsigned int)std::chrono::system_clock::now().time_since_epoch().count();
-    wnd_seed_ = CreateWindowExW(WS_EX_CLIENTEDGE, L"Edit", std::to_wstring(seed).c_str(), WS_CHILD | WS_VISIBLE | ES_NUMBER, 20, 325, rect.right - 125, 25, hwnd_, NULL, hInstance, NULL);
-    bn_generate_ = CreateWindowW(L"Button", L"Generate", WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON, rect.right - 100, 323, 100, 29, hwnd_, (HMENU)ID_GENERATE, hInstance, NULL);
+    wnd_seed_ = CreateWindowExW(WS_EX_CLIENTEDGE, L"Edit", std::to_wstring(seed).c_str(), WS_CHILD | WS_VISIBLE | ES_NUMBER, 20, 355, rect.right - 125, 25, hwnd_, NULL, hInstance, NULL);
+    bn_generate_ = CreateWindowW(L"Button", L"Generate", WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON, rect.right - 100, 353, 100, 29, hwnd_, (HMENU)ID_GENERATE, hInstance, NULL);
 
     GetClientRect(grp_rand_, &rect);
     int x = 25;
@@ -543,6 +627,8 @@ Randomizer::Randomizer(HINSTANCE hInstance)
     cb_skill_sp_ = CreateWindowW(L"Button", L"Skill SP", CB_STYLE, x, y + 90, width_cb, 15, hwnd_, (HMENU)ID_SKILL_SP, hInstance, NULL);
     cb_skill_prio_ = CreateWindowW(L"Button", L"Skill Priority", CB_STYLE, x + (width / 3), y + 90, width_cb, 15, hwnd_, (HMENU)ID_SKILL_PRIO, hInstance, NULL);
     cb_skill_type_ = CreateWindowW(L"Button", L"Skill Type", CB_STYLE, x + ((width / 3) * 2), y + 90, width_cb, 15, hwnd_, (HMENU)ID_SKILL_TYPE, hInstance, NULL);
+    cb_wild_puppets_ = CreateWindowW(L"Button", L"Wild Puppets", CB_STYLE, x, y + 120, width_cb, 15, hwnd_, (HMENU)ID_WILD_PUPPETS, hInstance, NULL);
+    cb_wild_style_ = CreateWindowW(L"Button", L"Wild Puppet Styles", CB_STYLE, x + (width / 3), y + 120, width_cb, 15, hwnd_, (HMENU)ID_WILD_STYLE, hInstance, NULL);
 
     set_tooltip(cb_skills_, L"Randomize the skills each puppet can learn");
     set_tooltip(cb_stats_, L"Randomize puppet base stats");
@@ -557,8 +643,10 @@ Randomizer::Randomizer(HINSTANCE hInstance)
     set_tooltip(cb_skill_sp_, L"Randomize skill SP");
     set_tooltip(cb_skill_prio_, L"Randomize skill priority");
     set_tooltip(cb_skill_type_, L"Randomize skill type (focus or spread. does not affect status skills)");
-    set_tooltip(wnd_trainerlvl_, L"Trainer puppets will have their level adjusted to the specified percentage\r\n100% = no change");
+    set_tooltip(wnd_lvladjust_, L"Trainer puppets and wild puppets will have their level adjusted to the specified percentage\r\n100% = no change");
     set_tooltip(cb_trainer_party_, L"Trainers will always have 6 puppets.\r\nnew puppets will be randomly generated at the same level as the highest level existing puppet");
+    set_tooltip(cb_wild_puppets_, L"Randomize which puppets appear in the wild");
+    set_tooltip(cb_wild_style_, L"Randomize which style of puppets appear in the wild (power, defence, etc)");
 
     NONCLIENTMETRICSW ncm = {0};
     ncm.cbSize = sizeof(ncm);
@@ -620,10 +708,10 @@ bool Randomizer::randomize()
     unsigned int seed = std::stoul(seedtext);
     gen_.seed(seed);
 
-    level_mod_ = std::stol(get_window_text(wnd_trainerlvl_));
+    level_mod_ = std::stol(get_window_text(wnd_lvladjust_));
     if(level_mod_ <= 0)
     {
-        error(L"Invalid trainer level modifier. Must be a positive integer greater than zero");
+        error(L"Invalid trainer level modifier. Must be an integer greater than zero");
         return false;
     }
 
@@ -634,6 +722,8 @@ bool Randomizer::randomize()
     rand_compat_ = (SendMessageW(cb_compat_, BM_GETCHECK, 0, 0) == BST_CHECKED);
     rand_abilities_ = (SendMessageW(cb_abilities_, BM_GETCHECK, 0, 0) == BST_CHECKED);
     rand_full_party_ = (SendMessageW(cb_trainer_party_, BM_GETCHECK, 0, 0) == BST_CHECKED);
+    rand_wild_puppets_ = (SendMessageW(cb_wild_puppets_, BM_GETCHECK, 0, 0) == BST_CHECKED);
+    rand_wild_style_ = (SendMessageW(cb_wild_style_, BM_GETCHECK, 0, 0) == BST_CHECKED);
     rand_puppets_ = rand_skillsets_ || rand_stats_ || rand_types_ || rand_abilities_;
     rand_skill_element_ = (SendMessageW(cb_skill_element_, BM_GETCHECK, 0, 0) == BST_CHECKED);
     rand_skill_power_ = (SendMessageW(cb_skill_power_, BM_GETCHECK, 0, 0) == BST_CHECKED);
@@ -798,18 +888,6 @@ bool Randomizer::randomize()
         }
     }
 
-    if(!rand_trainers_ && !rand_full_party_ && (level_mod_ == 100))
-    {
-        std::wstring path = filepath + (is_ynk_ ? L"/dat/gn_dat6.arc" : L"/dat/gn_dat3.arc");
-        if(!archive.save(path))
-        {
-            error((std::wstring(L"Could not write to file: ") + path + L"\nPlease make sure you have write permission to the game folder.").c_str());
-            return false;
-        }
-
-        return true;
-    }
-
     if(is_ynk_)
     {
         std::wstring path = filepath + L"/dat/gn_dat6.arc";
@@ -865,56 +943,133 @@ bool Randomizer::randomize()
     SendMessageW(progress_bar_, PBM_SETPOS, 75, 0);
     /* ---trainer randomization--- */
 
-    int dir_index = archive.get_index("script/dollOperator");
-    if(dir_index < 0)
+    if(rand_trainers_ || rand_full_party_ || (level_mod_ != 100))
     {
-        error(L"dollOperator directory missing from game data");
-        return false;
+        int dir_index = archive.get_index("script/dollOperator");
+        if(dir_index < 0)
+        {
+            error(L"dollOperator directory missing from game data");
+            return false;
+        }
+
+        index = archive.dir_begin(dir_index);
+        int end_index = archive.dir_end(dir_index);
+        if((index < 0) || (end_index < 0))
+        {
+            error(L"Error enumerating dollOperator directory");
+            return false;
+        }
+
+        int step = (end_index - index) / 12;
+        int count = 0;
+        for(; index < end_index; ++index)
+        {
+            if(count++ == step)
+            {
+                SendMessageW(progress_bar_, PBM_STEPIT, 0, 0);
+                count = 0;
+            }
+
+            if(archive.get_filename(index).find(".DOD") == std::string::npos)
+                continue;
+
+            len = archive.get_file(index, NULL);
+            if(!len)
+            {
+                error(L"Error iterating dollOperator directory");
+                return false;
+            }
+
+            buf.reset();
+            buf.reset(new char[len]);
+
+            if(archive.get_file(index, buf.get()) != len)
+            {
+                error(L"Error iterating dollOperator directory");
+                return false;
+            }
+
+            randomize_trainer(buf.get(), rand_data.get());
+
+            if(!archive.repack_file(index, buf.get(), len))
+            {
+                error(L"Error repacking .dod file");
+                return false;
+            }
+        }
     }
 
-    index = archive.dir_begin(dir_index);
-    int end_index = archive.dir_end(dir_index);
-    if((index < 0) || (end_index < 0))
+    /* ---wild puppet randomization--- */
+
+    if(rand_wild_puppets_ || rand_wild_style_ || (level_mod_ != 100))
     {
-        error(L"Error enumerating dollOperator directory");
-        return false;
-    }
-
-    int step = (end_index - index) / 25;
-    int count = 0;
-    for(; index < end_index; ++index)
-    {
-        if(count++ == step)
+        int dir_index = archive.get_index("map/data");
+        if(dir_index < 0)
         {
-            SendMessageW(progress_bar_, PBM_STEPIT, 0, 0);
-            count = 0;
-        }
-
-        if(archive.get_filename(index).find(".DOD") == std::string::npos)
-            continue;
-
-        len = archive.get_file(index, NULL);
-        if(!len)
-        {
-            error(L"Error iterating dollOperator directory");
+            error(L"map data directory missing from game data");
             return false;
         }
 
-        buf.reset();
-        buf.reset(new char[len]);
-
-        if(archive.get_file(index, buf.get()) != len)
+        index = archive.dir_begin(dir_index);
+        int end_index = archive.dir_end(dir_index);
+        if((index < 0) || (end_index < 0))
         {
-            error(L"Error iterating dollOperator directory");
+            error(L"Error enumerating map data directory");
             return false;
         }
 
-        randomize_trainer(buf.get(), rand_data.get());
-
-        if(!archive.repack_file(index, buf.get(), len))
+        int step = (end_index - index) / 13;
+        int count = 0;
+        for(; index < end_index; ++index)
         {
-            error(L"Error repacking .dod file");
-            return false;
+            if(count++ == step)
+            {
+                SendMessageW(progress_bar_, PBM_STEPIT, 0, 0);
+                count = 0;
+            }
+
+            if(!archive.is_dir(index))
+                continue;
+
+            int subdir_index = archive.dir_begin(index);
+            int subdir_end = archive.dir_end(index);
+            if((subdir_index < 0) || (subdir_end < 0))
+            {
+                error(L"Error enumerating map data subdirectory");
+                return false;
+            }
+
+            for(; subdir_index < subdir_end; ++subdir_index)
+            {
+                if(archive.get_filename(subdir_index).find(".MAD") == std::string::npos)
+                    continue;
+
+                len = archive.get_file(subdir_index, NULL);
+                if(!len)
+                {
+                    error(L"Error iterating map data subdirectory");
+                    return false;
+                }
+
+                buf.reset();
+                buf.reset(new char[len]);
+
+                if(archive.get_file(subdir_index, buf.get()) != len)
+                {
+                    error(L"Error iterating map data subdirectory");
+                    return false;
+                }
+
+                randomize_mad_file(buf.get());
+
+                if(!archive.repack_file(subdir_index, buf.get(), len))
+                {
+                    error(L"Error repacking .mad file");
+                    return false;
+                }
+
+                break;
+            }
         }
     }
 

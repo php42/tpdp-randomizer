@@ -56,9 +56,11 @@ private:
     HWND cb_skill_prio_;
     HWND cb_skill_type_;
     HWND progress_bar_;
-    HWND tx_trainerlvl_;
-    HWND wnd_trainerlvl_;
+    HWND tx_lvladjust_;
+    HWND wnd_lvladjust_;
     HWND cb_trainer_party_;
+    HWND cb_wild_puppets_;
+    HWND cb_wild_style_;
 
     HFONT hfont_;
 
@@ -82,12 +84,15 @@ private:
     bool rand_skill_prio_;
     bool rand_skill_type_;
     bool rand_full_party_;
+    bool rand_wild_puppets_;
+    bool rand_wild_style_;
     int level_mod_;
 
 
     void randomize_puppets(void *data, size_t len);
     void randomize_trainer(void *src, const void *rand_data);
     void randomize_skills(void *data, size_t len);
+    void randomize_mad_file(void *data);
 
     void decrypt_puppet(void *src, const void *rand_data, std::size_t len);
     void encrypt_puppet(void *src, const void *rand_data, std::size_t len);
