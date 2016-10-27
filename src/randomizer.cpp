@@ -370,13 +370,23 @@ void Randomizer::randomize_trainer(void *src, const void *rand_data)
 
         Puppet puppet(pos, false);
         unsigned int lvl = level_from_exp(puppets_[puppet.puppet_id], puppet.exp);
+        lvl = (unsigned int)(double(lvl) * lvl_mul);
+        if(lvl > 100)
+            lvl = 100;
         if(lvl > max_lvl)
             max_lvl = lvl;
+
+        if(puppet.exp == 0)
+            lvl = max_lvl;
+
         if(((puppet.puppet_id == 0) && rand_full_party_) || ((puppet.puppet_id != 0) && rand_trainers_))
         {
             PuppetData& data(puppets_[valid_puppet_ids_[id(gen_)]]);
 
-            puppet.style_index = style(gen_);
+            if(lvl >= 30)
+                puppet.style_index = style(gen_);
+            else
+                puppet.style_index = 0;
             while(data.styles[puppet.style_index].style_type == 0)
             {
                 if(puppet.style_index == 0)
@@ -415,12 +425,10 @@ void Randomizer::randomize_trainer(void *src, const void *rand_data)
 
             if(puppet.puppet_id < puppet_names_.size())
                 puppet.set_puppet_nickname(puppet_names_[puppet.puppet_id]);
-
-            if(puppet.exp == 0)
-                lvl = max_lvl;
         }
 
-        puppet.exp = exp_for_level(puppets_[puppet.puppet_id], (unsigned int)(double(lvl) * lvl_mul));
+        if(puppet.puppet_id)
+            puppet.exp = exp_for_level(puppets_[puppet.puppet_id], lvl);
         puppet.write(pos, false);
 
         encrypt_puppet(pos, rand_data, PUPPET_SIZE);
@@ -556,21 +564,30 @@ void Randomizer::randomize_mad_file(void *data)
         }
     }
 
-    if(level_mod_ != 100)
+    double mod = double(level_mod_) / 100.0;
+
+    char *lvls = &buf[0x22];
+    char *style_table = &buf[0x2C];
+    for(int i = 0; i < 10; ++i)
     {
-        double mod = double(level_mod_) / 100.0;
+        double newlvl = double(lvls[i]) * mod;
+        if(newlvl > 100)
+            newlvl = 100;
+        lvls[i] = (char)newlvl;
+        if(lvls[i] < 30)
+            style_table[i] = 0;
+    }
 
-        char *lvls = &buf[0x22];
-        for(int i = 0; i < 10; ++i)
-        {
-            lvls[i] = (char)(double(lvls[i]) * mod);
-        }
-
-        lvls = &buf[0x4A];
-        for(int i = 0; i < 5; ++i)
-        {
-            lvls[i] = (char)(double(lvls[i]) * mod);
-        }
+    lvls = &buf[0x4A];
+    style_table = &buf[0x4F];
+    for(int i = 0; i < 5; ++i)
+    {
+        double newlvl = double(lvls[i]) * mod;
+        if(newlvl > 100)
+            newlvl = 100;
+        lvls[i] = (char)newlvl;
+        if(lvls[i] < 30)
+            style_table[i] = 0;
     }
 }
 
