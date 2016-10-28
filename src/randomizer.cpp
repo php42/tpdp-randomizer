@@ -323,7 +323,21 @@ void Randomizer::randomize_puppets(void *data, size_t len)
                 for(auto& i : style.abilities)
                 {
                     if(i != 0)
+                    {
+                        /* don't give were-hakutaku to anyone other than keine */
+                        while((ability_deck[index] == 311) && (puppet.id != 62))
+                            ++index;
+
+                        /* don't give mode shift to anyone other than rika */
+                        while((ability_deck[index] == 379) && (puppet.id != 10))
+                            ++index;
+
+                        /* don't give three bodies to anyone other than hecatia */
+                        while((ability_deck[index] == 382) && (puppet.id != 131))
+                            ++index;
+
                         i = ability_deck[index++];
+                    }
                 }
             }
 
