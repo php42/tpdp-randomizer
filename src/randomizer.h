@@ -21,11 +21,12 @@
 #define WIN32_LEAN_AND_MEAN
 #include <Windows.h>
 
-#define VERSION_STRING "v1.0.2"
+#define VERSION_STRING "v1.0.3"
 
 #include "gamedata.h"
 #include <string>
 #include <map>
+#include <set>
 #include <vector>
 #include <random>
 
@@ -61,8 +62,12 @@ private:
     HWND cb_trainer_party_;
     HWND cb_wild_puppets_;
     HWND cb_wild_style_;
+    HWND cb_export_locations_;
 
     HFONT hfont_;
+
+    typedef std::map<unsigned int, std::set<std::string>> LocationMap;
+    LocationMap loc_map_;
 
     std::map<int, PuppetData> puppets_;
     std::vector<int> valid_puppet_ids_;
@@ -86,8 +91,8 @@ private:
     bool rand_full_party_;
     bool rand_wild_puppets_;
     bool rand_wild_style_;
+    bool rand_export_locations_;
     int level_mod_;
-
 
     void randomize_puppets(void *data, size_t len);
     void randomize_trainer(void *src, const void *rand_data);
@@ -100,9 +105,11 @@ private:
     unsigned int level_from_exp(const PuppetData& data, unsigned int exp) const;
     unsigned int exp_for_level(const PuppetData& data, unsigned int level) const;
 
-    void error(const wchar_t *msg);
+    void error(const std::wstring& msg);
 
     HWND set_tooltip(HWND control, wchar_t *msg);
+
+    void export_locations(const std::wstring& filepath);
 
 public:
 	Randomizer(HINSTANCE hInstance);

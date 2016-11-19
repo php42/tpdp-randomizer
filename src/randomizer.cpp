@@ -1,4 +1,4 @@
-/*
+ï»¿/*
 	Copyright (C) 2016 php42
 
 	This program is free software: you can redistribute it and/or modify
@@ -31,6 +31,7 @@ processorArchitecture='*' publicKeyToken='6595b64144ccf1df' language='*'\"")
 #include "gamedata.h"
 #include "puppet.h"
 #include "util.h"
+#include "textconvert.h"
 #include <memory>
 #include <chrono>
 #include <cmath>
@@ -40,9 +41,12 @@ processorArchitecture='*' publicKeyToken='6595b64144ccf1df' language='*'\"")
 
 #define MW_STYLE (WS_OVERLAPPED | WS_VISIBLE | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX)
 #define CB_STYLE (WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX)
+#define GRP_STYLE (WS_CHILD | WS_VISIBLE | BS_GROUPBOX | WS_GROUP)
 
 #define WND_WIDTH 512
-#define WND_HEIGHT 500
+#define WND_HEIGHT 530
+
+#define IS_CHECKED(chkbox) (SendMessageW(chkbox, BM_GETCHECK, 0, 0) == BST_CHECKED)
 
 enum
 {
@@ -168,6 +172,32 @@ HWND Randomizer::set_tooltip(HWND control, wchar_t *msg)
     SendMessageW(tip, TTM_SETMAXTIPWIDTH, 0, 400);
 
     return tip;
+}
+
+void Randomizer::export_locations(const std::wstring& filepath)
+{
+    std::string out;
+    out = "\xEF\xBB\xBF"; /* UTF-8 BOM to make MS Notepad happy */
+
+    for(auto& it : loc_map_)
+    {
+        if(it.first >= puppet_names_.size())
+            continue;
+
+        out += puppet_names_[it.first];
+        out += ":\r\n";
+
+        for(auto& j : it.second)
+        {
+            out += j;
+            out += "\r\n";
+        }
+
+        out += "\r\n";
+    }
+
+    if(!write_file(filepath, out.c_str(), out.length()))
+        error(std::wstring(L"Failed to write to file: ") + filepath + L"\nPlease make sure you have write permission");
 }
 
 void Randomizer::randomize_puppets(void *data, size_t len)
@@ -517,6 +547,7 @@ void Randomizer::randomize_skills(void * data, size_t len)
 void Randomizer::randomize_mad_file(void *data)
 {
     char *buf = (char*)data;
+    char *area_name = &buf[0x59];
 
     if(rand_wild_puppets_)
         std::shuffle(valid_puppet_ids_.begin(), valid_puppet_ids_.end(), gen_);
@@ -582,6 +613,10 @@ void Randomizer::randomize_mad_file(void *data)
 
     char *lvls = &buf[0x22];
     char *style_table = &buf[0x2C];
+    uint16_t *puppet_table = (uint16_t*)&buf[0x0E];
+    std::string loc_name;
+    if(area_name[0])
+        loc_name = utf_narrow(sjis_to_utf(area_name));
     for(int i = 0; i < 10; ++i)
     {
         double newlvl = double(lvls[i]) * mod;
@@ -590,10 +625,16 @@ void Randomizer::randomize_mad_file(void *data)
         lvls[i] = (char)newlvl;
         if(lvls[i] < 30)
             style_table[i] = 0;
+
+        if(rand_export_locations_ && puppet_table[i] && !loc_name.empty())
+            loc_map_[puppet_table[i]].insert(loc_name + " (" + puppets_[puppet_table[i]].styles[style_table[i]].type_string() + ')');
     }
 
     lvls = &buf[0x4A];
     style_table = &buf[0x4F];
+    puppet_table = (uint16_t*)&buf[0x40];
+    if(!loc_name.empty())
+        loc_name += " (blue grass)";
     for(int i = 0; i < 5; ++i)
     {
         double newlvl = double(lvls[i]) * mod;
@@ -602,6 +643,9 @@ void Randomizer::randomize_mad_file(void *data)
         lvls[i] = (char)newlvl;
         if(lvls[i] < 30)
             style_table[i] = 0;
+
+        if(rand_export_locations_ && puppet_table[i] && !loc_name.empty())
+            loc_map_[puppet_table[i]].insert(loc_name + " (" + puppets_[puppet_table[i]].styles[style_table[i]].type_string() + ')');
     }
 }
 
@@ -618,27 +662,28 @@ Randomizer::Randomizer(HINSTANCE hInstance)
 
     GetClientRect(hwnd_, &rect);
 
-    grp_dir_ = CreateWindowW(L"Button", L"Game Folder", WS_CHILD | WS_VISIBLE | BS_GROUPBOX | WS_GROUP, 10, 10, rect.right - 20, 55, hwnd_, NULL, hInstance, NULL);
-    grp_rand_ = CreateWindowW(L"Button", L"Randomization", WS_CHILD | WS_VISIBLE | BS_GROUPBOX | WS_GROUP, 10, 75, rect.right - 20, 185, hwnd_, NULL, hInstance, NULL);
-    grp_other_ = CreateWindowW(L"Button", L"Other", WS_CHILD | WS_VISIBLE | BS_GROUPBOX | WS_GROUP, 10, 270, rect.right - 20, 55, hwnd_, NULL, hInstance, NULL);
-    grp_seed_ = CreateWindowW(L"Button", L"Seed", WS_CHILD | WS_VISIBLE | BS_GROUPBOX | WS_GROUP, 10, 335, rect.right - 20, 55, hwnd_, NULL, hInstance, NULL);
-    bn_Randomize_ = CreateWindowW(L"Button", L"Randomize", WS_CHILD | WS_VISIBLE | BS_DEFPUSHBUTTON, (rect.right / 2) - 50, 400, 100, 30, hwnd_, (HMENU)ID_RANDOMIZE, hInstance, NULL);
+    grp_dir_ = CreateWindowW(L"Button", L"Game Folder", GRP_STYLE, 10, 10, rect.right - 20, 55, hwnd_, NULL, hInstance, NULL);
+    grp_rand_ = CreateWindowW(L"Button", L"Randomization", GRP_STYLE, 10, 75, rect.right - 20, 185, hwnd_, NULL, hInstance, NULL);
+    grp_other_ = CreateWindowW(L"Button", L"Other", GRP_STYLE, 10, 270, rect.right - 20, 85, hwnd_, NULL, hInstance, NULL);
+    grp_seed_ = CreateWindowW(L"Button", L"Seed", GRP_STYLE, 10, 365, rect.right - 20, 55, hwnd_, NULL, hInstance, NULL);
+    bn_Randomize_ = CreateWindowW(L"Button", L"Randomize", WS_CHILD | WS_VISIBLE | BS_DEFPUSHBUTTON, (rect.right / 2) - 50, 430, 100, 30, hwnd_, (HMENU)ID_RANDOMIZE, hInstance, NULL);
     progress_bar_ = CreateWindowW(PROGRESS_CLASSW, NULL, WS_CHILD | WS_VISIBLE, 10, rect.bottom - 30, rect.right - 20, 20, hwnd_, NULL, hInstance, NULL);
     SendMessageW(progress_bar_, PBM_SETSTEP, 1, 0);
 
     GetClientRect(grp_dir_, &rect);
-    wnd_dir_ = CreateWindowExW(WS_EX_CLIENTEDGE, L"Edit", L"C:\\game\\FocasLens\\Œ¶‘zlŒ`‰‰•‘", WS_CHILD | WS_VISIBLE, 20, 30, rect.right - 90, 25, hwnd_, NULL, hInstance, NULL);
+    wnd_dir_ = CreateWindowExW(WS_EX_CLIENTEDGE, L"Edit", L"C:\\game\\FocasLens\\å¹»æƒ³äººå½¢æ¼”èˆž", WS_CHILD | WS_VISIBLE, 20, 30, rect.right - 90, 25, hwnd_, NULL, hInstance, NULL);
     bn_browse_ = CreateWindowW(L"Button", L"Browse", WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON, rect.right - 65, 28, 65, 29, hwnd_, (HMENU)ID_BROWSE, hInstance, NULL);
 
     GetClientRect(grp_other_, &rect);
     wnd_lvladjust_ = CreateWindowExW(WS_EX_CLIENTEDGE, L"Edit", L"100", WS_CHILD | WS_VISIBLE | ES_NUMBER, 20, 290, 50, 25, hwnd_, NULL, hInstance, NULL);
     tx_lvladjust_ = CreateWindowW(L"Static", L"% enemy level adjustment", WS_CHILD | WS_VISIBLE | SS_WORDELLIPSIS, 75, 292, (rect.right / 2) - 75, 23, hwnd_, NULL, hInstance, NULL);
     cb_trainer_party_ = CreateWindowW(L"Button", L"Full trainer party", CB_STYLE, (rect.right / 2) + 20, 293, (rect.right / 2) - 25, 15, hwnd_, NULL, hInstance, NULL);
+    cb_export_locations_ = CreateWindowW(L"Button", L"Export catch locations", CB_STYLE, 20, 327, (rect.right / 2) - 25, 15, hwnd_, NULL, hInstance, NULL);
 
     GetClientRect(grp_seed_, &rect);
     unsigned int seed = (unsigned int)std::chrono::system_clock::now().time_since_epoch().count();
-    wnd_seed_ = CreateWindowExW(WS_EX_CLIENTEDGE, L"Edit", std::to_wstring(seed).c_str(), WS_CHILD | WS_VISIBLE | ES_NUMBER, 20, 355, rect.right - 125, 25, hwnd_, NULL, hInstance, NULL);
-    bn_generate_ = CreateWindowW(L"Button", L"Generate", WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON, rect.right - 100, 353, 100, 29, hwnd_, (HMENU)ID_GENERATE, hInstance, NULL);
+    wnd_seed_ = CreateWindowExW(WS_EX_CLIENTEDGE, L"Edit", std::to_wstring(seed).c_str(), WS_CHILD | WS_VISIBLE | ES_NUMBER, 20, 385, rect.right - 125, 25, hwnd_, NULL, hInstance, NULL);
+    bn_generate_ = CreateWindowW(L"Button", L"Generate", WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON, rect.right - 100, 383, 100, 29, hwnd_, (HMENU)ID_GENERATE, hInstance, NULL);
 
     GetClientRect(grp_rand_, &rect);
     int x = 25;
@@ -678,6 +723,7 @@ Randomizer::Randomizer(HINSTANCE hInstance)
     set_tooltip(cb_trainer_party_, L"Trainers will always have 6 puppets.\r\nnew puppets will be randomly generated at the same level as the highest level existing puppet");
     set_tooltip(cb_wild_puppets_, L"Randomize which puppets appear in the wild");
     set_tooltip(cb_wild_style_, L"Randomize which style of puppets appear in the wild (power, defence, etc)");
+    set_tooltip(cb_export_locations_, L"Export the locations where each puppet can be caught in the wild.\r\nThis will be written to catch_locations.txt in the game folder.");
 
     NONCLIENTMETRICSW ncm = {0};
     ncm.cbSize = sizeof(ncm);
@@ -735,6 +781,7 @@ bool Randomizer::randomize()
     puppets_.clear();
     valid_puppet_ids_.clear();
     puppet_names_.clear();
+    loc_map_.clear();
 
     unsigned int seed = std::stoul(seedtext);
     gen_.seed(seed);
@@ -746,22 +793,23 @@ bool Randomizer::randomize()
         return false;
     }
 
-    rand_skillsets_ = (SendMessageW(cb_skills_, BM_GETCHECK, 0, 0) == BST_CHECKED);
-    rand_stats_ = (SendMessageW(cb_stats_, BM_GETCHECK, 0, 0) == BST_CHECKED);
-    rand_trainers_ = (SendMessageW(cb_trainers_, BM_GETCHECK, 0, 0) == BST_CHECKED);
-    rand_types_ = (SendMessageW(cb_types_, BM_GETCHECK, 0, 0) == BST_CHECKED);
-    rand_compat_ = (SendMessageW(cb_compat_, BM_GETCHECK, 0, 0) == BST_CHECKED);
-    rand_abilities_ = (SendMessageW(cb_abilities_, BM_GETCHECK, 0, 0) == BST_CHECKED);
-    rand_full_party_ = (SendMessageW(cb_trainer_party_, BM_GETCHECK, 0, 0) == BST_CHECKED);
-    rand_wild_puppets_ = (SendMessageW(cb_wild_puppets_, BM_GETCHECK, 0, 0) == BST_CHECKED);
-    rand_wild_style_ = (SendMessageW(cb_wild_style_, BM_GETCHECK, 0, 0) == BST_CHECKED);
+    rand_skillsets_ = IS_CHECKED(cb_skills_);
+    rand_stats_ = IS_CHECKED(cb_stats_);
+    rand_trainers_ = IS_CHECKED(cb_trainers_);
+    rand_types_ = IS_CHECKED(cb_types_);
+    rand_compat_ = IS_CHECKED(cb_compat_);
+    rand_abilities_ = IS_CHECKED(cb_abilities_);
+    rand_full_party_ = IS_CHECKED(cb_trainer_party_);
+    rand_wild_puppets_ = IS_CHECKED(cb_wild_puppets_);
+    rand_wild_style_ = IS_CHECKED(cb_wild_style_);
+    rand_export_locations_ = IS_CHECKED(cb_export_locations_);
     rand_puppets_ = rand_skillsets_ || rand_stats_ || rand_types_ || rand_abilities_;
-    rand_skill_element_ = (SendMessageW(cb_skill_element_, BM_GETCHECK, 0, 0) == BST_CHECKED);
-    rand_skill_power_ = (SendMessageW(cb_skill_power_, BM_GETCHECK, 0, 0) == BST_CHECKED);
-    rand_skill_acc_ = (SendMessageW(cb_skill_acc_, BM_GETCHECK, 0, 0) == BST_CHECKED);
-    rand_skill_sp_ = (SendMessageW(cb_skill_sp_, BM_GETCHECK, 0, 0) == BST_CHECKED);
-    rand_skill_prio_ = (SendMessageW(cb_skill_prio_, BM_GETCHECK, 0, 0) == BST_CHECKED);
-    rand_skill_type_ = (SendMessageW(cb_skill_type_, BM_GETCHECK, 0, 0) == BST_CHECKED);
+    rand_skill_element_ = IS_CHECKED(cb_skill_element_);
+    rand_skill_power_ = IS_CHECKED(cb_skill_power_);
+    rand_skill_acc_ = IS_CHECKED(cb_skill_acc_);
+    rand_skill_sp_ = IS_CHECKED(cb_skill_sp_);
+    rand_skill_prio_ = IS_CHECKED(cb_skill_prio_);
+    rand_skill_type_ = IS_CHECKED(cb_skill_type_);
     rand_skills_ = rand_skill_element_ || rand_skill_power_ || rand_skill_acc_ || rand_skill_sp_ || rand_skill_prio_ || rand_skill_type_;
 
     if(!archive.open(filepath + L"/dat/gn_dat1.arc"))
@@ -797,7 +845,7 @@ bool Randomizer::randomize()
         std::wstring msg(L"Failed to open ");
         msg += (is_ynk_ ? L"gn_dat6.arc" : L"gn_dat3.arc");
         msg += L"\nMake sure the specified folder is correct";
-        error(msg.c_str());
+        error(msg);
         return false;
     }
 
@@ -924,7 +972,7 @@ bool Randomizer::randomize()
         std::wstring path = filepath + L"/dat/gn_dat6.arc";
         if(!archive.save(path))
         {
-            error((std::wstring(L"Could not write to file: ") + path + L"\nPlease make sure you have write permission to the game folder.").c_str());
+            error(std::wstring(L"Could not write to file: ") + path + L"\nPlease make sure you have write permission to the game folder.");
             return false;
         }
 
@@ -1032,7 +1080,7 @@ bool Randomizer::randomize()
 
     /* ---wild puppet randomization--- */
 
-    if(rand_wild_puppets_ || rand_wild_style_ || (level_mod_ != 100))
+    if(rand_wild_puppets_ || rand_wild_style_ || rand_export_locations_ || (level_mod_ != 100))
     {
         int dir_index = archive.get_index("map/data");
         if(dir_index < 0)
@@ -1093,10 +1141,13 @@ bool Randomizer::randomize()
 
                 randomize_mad_file(buf.get());
 
-                if(!archive.repack_file(subdir_index, buf.get(), len))
+                if(rand_wild_puppets_ || rand_wild_style_ || (level_mod_ != 100)) /* don't repack if we're just dumping catch locations */
                 {
-                    error(L"Error repacking .mad file");
-                    return false;
+                    if(!archive.repack_file(subdir_index, buf.get(), len))
+                    {
+                        error(L"Error repacking .mad file");
+                        return false;
+                    }
                 }
 
                 break;
@@ -1107,9 +1158,12 @@ bool Randomizer::randomize()
     std::wstring path = filepath + (is_ynk_ ? L"/dat/gn_dat5.arc" : L"/dat/gn_dat3.arc");
     if(!archive.save(path))
     {
-        error((std::wstring(L"Could not write to file: ") + path + L"\nPlease make sure you have write permission to the game folder.").c_str());
+        error(std::wstring(L"Could not write to file: ") + path + L"\nPlease make sure you have write permission to the game folder.");
         return false;
     }
+
+    if(rand_export_locations_)
+        export_locations(filepath + L"/catch_locations.txt");
 
     return true;
 }
@@ -1153,9 +1207,9 @@ void Randomizer::encrypt_puppet(void *src, const void *rand_data, std::size_t le
     }
 }
 
-void Randomizer::error(const wchar_t * msg)
+void Randomizer::error(const std::wstring& msg)
 {
-    MessageBoxW(hwnd_, msg, L"Error", MB_OK | MB_ICONERROR);
+    MessageBoxW(hwnd_, msg.c_str(), L"Error", MB_OK | MB_ICONERROR);
 }
 
 unsigned int Randomizer::level_from_exp(const PuppetData& data, unsigned int exp) const

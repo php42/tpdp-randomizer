@@ -108,6 +108,7 @@ public:
 
 	void read(const void *data);
     void write(void *data);
+    const char *type_string();
 };
 
 /* base data for each puppet (including variants) */

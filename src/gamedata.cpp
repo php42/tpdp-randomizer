@@ -107,6 +107,29 @@ void StyleData::write(void * data)
         write_le16(&buf[65 + (i * 2)], lv70_skills[i]);
 }
 
+const char *StyleData::type_string()
+{
+    switch(style_type)
+    {
+    case STYLE_NORMAL:
+        return "Normal";
+    case STYLE_POWER:
+        return "Power";
+    case STYLE_DEFENSE:
+        return "Defense";
+    case STYLE_ASSIST:
+        return "Assist";
+    case STYLE_SPEED:
+        return "Speed";
+    case STYLE_EXTRA:
+        return "Extra";
+    default:
+        return "None";
+    }
+
+    return "Error";
+}
+
 PuppetData::PuppetData()
 {
 	cost = 0;

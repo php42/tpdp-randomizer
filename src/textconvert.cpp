@@ -24,12 +24,12 @@ std::wstring sjis_to_utf(const std::string& str)
 {
 	std::wstring ret;
 
-    int len = MultiByteToWideChar(CP_SJIS, MB_PRECOMPOSED, str.c_str(), str.length(), NULL, 0);
+    int len = MultiByteToWideChar(CP_SJIS, MB_PRECOMPOSED, str.c_str(), -1, NULL, 0);
     if(!len)
         return ret;
 
     wchar_t *buf = new wchar_t[len];
-    if(!MultiByteToWideChar(CP_SJIS, MB_PRECOMPOSED, str.c_str(), str.length(), buf, len))
+    if(!MultiByteToWideChar(CP_SJIS, MB_PRECOMPOSED, str.c_str(), -1, buf, len))
         return ret;
 
     ret = buf;
@@ -50,7 +50,7 @@ std::wstring sjis_to_utf(const char *begin, const char *end)
     if(!MultiByteToWideChar(CP_SJIS, MB_PRECOMPOSED, begin, end - begin, buf, len))
         return ret;
 
-    ret = buf;
+    ret.assign(buf, len);
     delete[] buf;
 
 	return ret;
@@ -60,12 +60,12 @@ std::string utf_to_sjis(const std::wstring& str)
 {
 	std::string ret;
 
-    int len = WideCharToMultiByte(CP_SJIS, 0, str.c_str(), str.length(), NULL, 0, NULL, NULL);
+    int len = WideCharToMultiByte(CP_SJIS, 0, str.c_str(), -1, NULL, 0, NULL, NULL);
     if(!len)
         return ret;
 
     char *buf = new char[len];
-    if(!WideCharToMultiByte(CP_SJIS, 0, str.c_str(), str.length(), buf, len, NULL, NULL))
+    if(!WideCharToMultiByte(CP_SJIS, 0, str.c_str(), -1, buf, len, NULL, NULL))
         return ret;
 
     ret = buf;
@@ -78,12 +78,12 @@ std::wstring utf_widen(const std::string& str)
 {
 	std::wstring ret;
 
-    int len = MultiByteToWideChar(CP_UTF8, MB_PRECOMPOSED, str.c_str(), str.length(), NULL, 0);
+    int len = MultiByteToWideChar(CP_UTF8, MB_PRECOMPOSED, str.c_str(), -1, NULL, 0);
     if(!len)
         return ret;
 
     wchar_t *buf = new wchar_t[len];
-    if(!MultiByteToWideChar(CP_UTF8, MB_PRECOMPOSED, str.c_str(), str.length(), buf, len))
+    if(!MultiByteToWideChar(CP_UTF8, MB_PRECOMPOSED, str.c_str(), -1, buf, len))
         return ret;
 
     ret = buf;
@@ -96,12 +96,12 @@ std::string utf_narrow(const std::wstring& str)
 {
 	std::string ret;
 
-    int len = WideCharToMultiByte(CP_UTF8, 0, str.c_str(), str.length(), NULL, 0, NULL, NULL);
+    int len = WideCharToMultiByte(CP_UTF8, 0, str.c_str(), -1, NULL, 0, NULL, NULL);
     if(!len)
         return ret;
 
     char *buf = new char[len];
-    if(!WideCharToMultiByte(CP_UTF8, 0, str.c_str(), str.length(), buf, len, NULL, NULL))
+    if(!WideCharToMultiByte(CP_UTF8, 0, str.c_str(), -1, buf, len, NULL, NULL))
         return ret;
 
     ret = buf;
