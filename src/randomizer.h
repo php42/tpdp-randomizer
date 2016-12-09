@@ -21,7 +21,7 @@
 #define WIN32_LEAN_AND_MEAN
 #include <Windows.h>
 
-#define VERSION_STRING "v1.0.3"
+#define VERSION_STRING "v1.0.4"
 
 #include "gamedata.h"
 #include <string>
@@ -63,6 +63,9 @@ private:
     HWND cb_wild_puppets_;
     HWND cb_wild_style_;
     HWND cb_export_locations_;
+    HWND cb_use_quota_;
+    HWND wnd_quota_;
+    HWND tx_quota_;
 
     HFONT hfont_;
 
@@ -92,7 +95,9 @@ private:
     bool rand_wild_puppets_;
     bool rand_wild_style_;
     bool rand_export_locations_;
+    bool rand_quota_;
     int level_mod_;
+    int stat_quota_;
 
     void randomize_puppets(void *data, size_t len);
     void randomize_trainer(void *src, const void *rand_data);

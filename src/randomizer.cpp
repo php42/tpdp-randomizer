@@ -47,6 +47,7 @@ processorArchitecture='*' publicKeyToken='6595b64144ccf1df' language='*'\"")
 #define WND_HEIGHT 530
 
 #define IS_CHECKED(chkbox) (SendMessageW(chkbox, BM_GETCHECK, 0, 0) == BST_CHECKED)
+#define SET_CHECKED(chkbox, checked) SendMessageW(chkbox, BM_SETCHECK, checked ? BST_CHECKED : BST_UNCHECKED, 0)
 
 enum
 {
@@ -66,10 +67,9 @@ enum
     ID_SKILL_PRIO,
     ID_SKILL_TYPE,
     ID_WILD_PUPPETS,
-    ID_WILD_STYLE
+    ID_WILD_STYLE,
+    ID_USE_QUOTA
 };
-
-static Randomizer *g_wnd = NULL;
 
 static const int cost_exp_modifiers[] = {70, 85, 100, 115, 130};
 static const int cost_exp_modifiers_ynk[] = {85, 92, 100, 107, 115};
@@ -81,19 +81,20 @@ LRESULT CALLBACK Randomizer::WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM 
     case WM_COMMAND:
         if(HIWORD(wParam) == BN_CLICKED)
         {
+            Randomizer *rnd = (Randomizer*)GetWindowLongPtrW(hwnd, GWLP_USERDATA);
             switch(LOWORD(wParam))
             {
             case ID_GENERATE:
                 {
                     unsigned int seed = (unsigned int)std::chrono::system_clock::now().time_since_epoch().count();
-                    SetWindowTextW(g_wnd->wnd_seed_, std::to_wstring(seed).c_str());
+                    SetWindowTextW(rnd->wnd_seed_, std::to_wstring(seed).c_str());
                 }
                 break;
             case ID_BROWSE:
                 {
                     wchar_t buf[MAX_PATH] = {0};
                     BROWSEINFOW bi = {0};
-                    bi.hwndOwner = g_wnd->hwnd_;
+                    bi.hwndOwner = hwnd;
                     bi.pszDisplayName = buf;
                     bi.lpszTitle = L"Select Game Folder";
                     bi.ulFlags = BIF_USENEWUI;
@@ -104,20 +105,35 @@ LRESULT CALLBACK Randomizer::WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM 
 
                     SHGetPathFromIDListW(pl, buf);
                     CoTaskMemFree(pl);
-                    SetWindowTextW(g_wnd->wnd_dir_, buf);
+                    SetWindowTextW(rnd->wnd_dir_, buf);
                 }
                 break;
             case ID_RANDOMIZE:
-                if(MessageBoxW(g_wnd->hwnd_, L"This will permanently modify game files.\r\nIf you have not backed up your game folder, you may wish to do so now.", L"Notice", MB_OKCANCEL | MB_ICONINFORMATION) != IDOK)
+                if(MessageBoxW(hwnd, L"This will permanently modify game files.\r\nIf you have not backed up your game folder, you may wish to do so now.", L"Notice", MB_OKCANCEL | MB_ICONINFORMATION) != IDOK)
                     break;
-                if(g_wnd->randomize())
+                if(rnd->randomize())
                 {
-                    SendMessageW(g_wnd->progress_bar_, PBM_SETPOS, 100, 0);
-                    MessageBoxW(g_wnd->hwnd_, L"Complete!", L"Success", MB_OK);
+                    SendMessageW(rnd->progress_bar_, PBM_SETPOS, 100, 0);
+                    MessageBoxW(hwnd, L"Complete!", L"Success", MB_OK);
                 }
                 else
-                    MessageBoxW(g_wnd->hwnd_, L"An error occurred, randomization aborted", L"Error", MB_OK);
-                SendMessageW(g_wnd->progress_bar_, PBM_SETPOS, 0, 0);
+                    MessageBoxW(hwnd, L"An error occurred, randomization aborted", L"Error", MB_OK);
+                SendMessageW(rnd->progress_bar_, PBM_SETPOS, 0, 0);
+                break;
+            case ID_STATS:
+                if(!IS_CHECKED(rnd->cb_stats_))
+                {
+                    SET_CHECKED(rnd->cb_use_quota_, false);
+                    EnableWindow(rnd->wnd_quota_, false);
+                }
+                break;
+            case ID_USE_QUOTA:
+                {
+                    bool checked = IS_CHECKED(rnd->cb_use_quota_);
+                    EnableWindow(rnd->wnd_quota_, checked);
+                    if(checked)
+                        SET_CHECKED(rnd->cb_stats_, true);
+                }
                 break;
             default:
                 break;
@@ -167,6 +183,7 @@ HWND Randomizer::set_tooltip(HWND control, wchar_t *msg)
     ti.hwnd = hwnd_;
     ti.uFlags = TTF_IDISHWND | TTF_SUBCLASS;
     ti.uId = (UINT_PTR)control;
+    ti.hinst = hInstance_;
     ti.lpszText = msg;
     SendMessageW(tip, TTM_ADDTOOLW, 0, (LPARAM)&ti);
     SendMessageW(tip, TTM_SETMAXTIPWIDTH, 0, 400);
@@ -268,6 +285,7 @@ void Randomizer::randomize_puppets(void *data, size_t len)
     std::bernoulli_distribution compat_chance(0.5); /* 50% chance to invert skill card compatibility */
     std::bernoulli_distribution element2_chance(0.75); /* 75% chance to get a secondary type */
     std::uniform_int_distribution<int> element(1, is_ynk_ ? ELEMENT_WARPED : ELEMENT_SOUND);
+    std::uniform_int_distribution<int> gen_stat(0, 0xff);
 
     int step = puppets_.size() / 25;
     int count = 0;
@@ -373,9 +391,35 @@ void Randomizer::randomize_puppets(void *data, size_t len)
 
             if(rand_stats_)
             {
-                std::shuffle(stats.begin(), stats.end(), gen_);
-                for(int i = 0; i < 6; ++i)
-                    style.base_stats[i] = stats[i];
+                if(!rand_quota_)
+                {
+                    std::shuffle(stats.begin(), stats.end(), gen_);
+                    for(int i = 0; i < 6; ++i)
+                        style.base_stats[i] = stats[i];
+                }
+                else
+                {
+                    memset(style.base_stats, 0, sizeof(style.base_stats));
+                    int sum = 0;
+                    while(sum < stat_quota_)
+                    {
+                        for(auto& i : style.base_stats)
+                        {
+                            int temp = gen_stat(gen_);
+                            if((temp + i) > 0xff)
+                                temp = 0xff - i;
+                            if((temp + sum) >= stat_quota_)
+                            {
+                                temp = stat_quota_ - sum;
+                                i += temp;
+                                sum += temp;
+                                break;
+                            }
+                            i += temp;
+                            sum += temp;
+                        }
+                    }
+                }
             }
 
             if(rand_types_)
@@ -652,13 +696,16 @@ void Randomizer::randomize_mad_file(void *data)
 /* raw winapi so we don't have any dependencies */
 Randomizer::Randomizer(HINSTANCE hInstance)
 {
-    g_wnd = this;
     hInstance_ = hInstance;
     RECT rect;
 
     SystemParametersInfoW(SPI_GETWORKAREA, 0, &rect, 0);
 
     hwnd_ = CreateWindowW(L"MainWindow", L"TPDP Randomizer "  VERSION_STRING, MW_STYLE, (rect.right - WND_WIDTH) / 2, (rect.bottom - WND_HEIGHT) / 2, WND_WIDTH, WND_HEIGHT, NULL, NULL, hInstance, NULL);
+    if(hwnd_ == NULL)
+        abort();
+
+    SetWindowLongPtrW(hwnd_, GWLP_USERDATA, (LONG_PTR)this);
 
     GetClientRect(hwnd_, &rect);
 
@@ -675,10 +722,12 @@ Randomizer::Randomizer(HINSTANCE hInstance)
     bn_browse_ = CreateWindowW(L"Button", L"Browse", WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON, rect.right - 65, 28, 65, 29, hwnd_, (HMENU)ID_BROWSE, hInstance, NULL);
 
     GetClientRect(grp_other_, &rect);
-    wnd_lvladjust_ = CreateWindowExW(WS_EX_CLIENTEDGE, L"Edit", L"100", WS_CHILD | WS_VISIBLE | ES_NUMBER, 20, 290, 50, 25, hwnd_, NULL, hInstance, NULL);
+    wnd_lvladjust_ = CreateWindowExW(WS_EX_CLIENTEDGE, L"Edit", L"100", WS_CHILD | WS_VISIBLE | ES_NUMBER, 20, 290, 50, 23, hwnd_, NULL, hInstance, NULL);
     tx_lvladjust_ = CreateWindowW(L"Static", L"% enemy level adjustment", WS_CHILD | WS_VISIBLE | SS_WORDELLIPSIS, 75, 292, (rect.right / 2) - 75, 23, hwnd_, NULL, hInstance, NULL);
     cb_trainer_party_ = CreateWindowW(L"Button", L"Full trainer party", CB_STYLE, (rect.right / 2) + 20, 293, (rect.right / 2) - 25, 15, hwnd_, NULL, hInstance, NULL);
-    cb_export_locations_ = CreateWindowW(L"Button", L"Export catch locations", CB_STYLE, 20, 327, (rect.right / 2) - 25, 15, hwnd_, NULL, hInstance, NULL);
+    cb_export_locations_ = CreateWindowW(L"Button", L"Export catch locations", CB_STYLE, 20, 325, (rect.right / 2) - 25, 15, hwnd_, NULL, hInstance, NULL);
+    wnd_quota_ = CreateWindowExW(WS_EX_CLIENTEDGE, L"Edit", L"500", WS_CHILD | WS_VISIBLE | ES_NUMBER | WS_DISABLED, (rect.right / 2) + 20, 323, 50, 23, hwnd_, NULL, hInstance, NULL);
+    tx_lvladjust_ = CreateWindowW(L"Static", L"Stat quota", WS_CHILD | WS_VISIBLE | SS_WORDELLIPSIS, (rect.right / 2) + 75, 325, (rect.right / 2) - 75, 23, hwnd_, NULL, hInstance, NULL);
 
     GetClientRect(grp_seed_, &rect);
     unsigned int seed = (unsigned int)std::chrono::system_clock::now().time_since_epoch().count();
@@ -705,6 +754,7 @@ Randomizer::Randomizer(HINSTANCE hInstance)
     cb_skill_type_ = CreateWindowW(L"Button", L"Skill Type", CB_STYLE, x + ((width / 3) * 2), y + 90, width_cb, 15, hwnd_, (HMENU)ID_SKILL_TYPE, hInstance, NULL);
     cb_wild_puppets_ = CreateWindowW(L"Button", L"Wild Puppets", CB_STYLE, x, y + 120, width_cb, 15, hwnd_, (HMENU)ID_WILD_PUPPETS, hInstance, NULL);
     cb_wild_style_ = CreateWindowW(L"Button", L"Wild Puppet Styles", CB_STYLE, x + (width / 3), y + 120, width_cb, 15, hwnd_, (HMENU)ID_WILD_STYLE, hInstance, NULL);
+    cb_use_quota_ = CreateWindowW(L"Button", L"Use stat quota", CB_STYLE, x + ((width / 3) * 2), y + 120, width_cb, 15, hwnd_, (HMENU)ID_USE_QUOTA, hInstance, NULL);
 
     set_tooltip(cb_skills_, L"Randomize the skills each puppet can learn");
     set_tooltip(cb_stats_, L"Randomize puppet base stats");
@@ -724,6 +774,8 @@ Randomizer::Randomizer(HINSTANCE hInstance)
     set_tooltip(cb_wild_puppets_, L"Randomize which puppets appear in the wild");
     set_tooltip(cb_wild_style_, L"Randomize which style of puppets appear in the wild (power, defence, etc)");
     set_tooltip(cb_export_locations_, L"Export the locations where each puppet can be caught in the wild.\r\nThis will be written to catch_locations.txt in the game folder.");
+    set_tooltip(cb_use_quota_, L"When stat randomization is enabled, each puppet will recieve the same total sum of stat points (distributed randomly)\r\nThe number of stat points can be adjusted in the \"Stat quota\" field below");
+    set_tooltip(wnd_quota_, L"When \"Use stat quota\" is enabled, this number dictates the total sum of stat points each puppet recieves");
 
     NONCLIENTMETRICSW ncm = {0};
     ncm.cbSize = sizeof(ncm);
@@ -803,6 +855,7 @@ bool Randomizer::randomize()
     rand_wild_puppets_ = IS_CHECKED(cb_wild_puppets_);
     rand_wild_style_ = IS_CHECKED(cb_wild_style_);
     rand_export_locations_ = IS_CHECKED(cb_export_locations_);
+    rand_quota_ = IS_CHECKED(cb_use_quota_);
     rand_puppets_ = rand_skillsets_ || rand_stats_ || rand_types_ || rand_abilities_;
     rand_skill_element_ = IS_CHECKED(cb_skill_element_);
     rand_skill_power_ = IS_CHECKED(cb_skill_power_);
@@ -811,6 +864,22 @@ bool Randomizer::randomize()
     rand_skill_prio_ = IS_CHECKED(cb_skill_prio_);
     rand_skill_type_ = IS_CHECKED(cb_skill_type_);
     rand_skills_ = rand_skill_element_ || rand_skill_power_ || rand_skill_acc_ || rand_skill_sp_ || rand_skill_prio_ || rand_skill_type_;
+
+    if(rand_quota_)
+    {
+        std::wstring quota_text = get_window_text(wnd_quota_);
+        stat_quota_ = std::stol(quota_text);
+        if(stat_quota_ < 1)
+        {
+            error(L"Stat quota must be an integer greater than zero.");
+            return false;
+        }
+        else if(stat_quota_ > (0xFF * 6))
+        {
+            error(L"Stat quota too large! Maximum quota is 1530.");
+            return false;
+        }
+    }
 
     if(!archive.open(filepath + L"/dat/gn_dat1.arc"))
     {
