@@ -24,38 +24,6 @@
 
 Puppet::Puppet()
 {
-	/*trainer_id = 0;
-	secret_id = 0;
-	memset(trainer_name_raw_, 0, sizeof(trainer_name_raw_));
-	catch_location = 0;
-	caught_year = 0;
-	caught_month = 0;
-	caught_day = 0;
-	caught_hour = 0;
-	caught_minute = 0;
-	memset(puppet_nickname_raw_, 0, sizeof(puppet_nickname_raw_));
-	puppet_id = 0;
-	style_index = 0;
-	ability_index = 0;
-	mark = 0;
-	memset(ivs, 0, sizeof(ivs));
-	unknown_0x57 = 0;
-	exp = 0;
-	happiness = 0;
-	pp = 0;
-	costume_index = 0;
-	memset(evs, 0, sizeof(evs));
-	held_item_id = 0;
-	for(int i = 0; i < 4; ++i)
-		skills[i] = 0;
-	memset(unknown_0x71, 0, sizeof(unknown_0x71));
-
-	level = 0;
-	hp = 0;
-	memset(sp, 0, sizeof(sp));
-	memset(status_effects, 0, sizeof(status_effects));
-	unknown_0x9e = 0;*/
-
 	memset(this, 0, sizeof(Puppet));
 
 	/* apparent default values for empty party puppets */

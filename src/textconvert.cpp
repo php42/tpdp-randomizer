@@ -24,6 +24,9 @@ std::wstring sjis_to_utf(const std::string& str)
 {
 	std::wstring ret;
 
+    if(str.empty())
+        return ret;
+
     int len = MultiByteToWideChar(CP_SJIS, MB_PRECOMPOSED, str.c_str(), -1, NULL, 0);
     if(!len)
         return ret;
@@ -41,6 +44,9 @@ std::wstring sjis_to_utf(const std::string& str)
 std::wstring sjis_to_utf(const char *begin, const char *end)
 {
 	std::wstring ret;
+
+    if(end <= begin)
+        return ret;
 
     int len = MultiByteToWideChar(CP_SJIS, MB_PRECOMPOSED, begin, end - begin, NULL, 0);
     if(!len)
@@ -60,6 +66,9 @@ std::string utf_to_sjis(const std::wstring& str)
 {
 	std::string ret;
 
+    if(str.empty())
+        return ret;
+
     int len = WideCharToMultiByte(CP_SJIS, 0, str.c_str(), -1, NULL, 0, NULL, NULL);
     if(!len)
         return ret;
@@ -78,6 +87,9 @@ std::wstring utf_widen(const std::string& str)
 {
 	std::wstring ret;
 
+    if(str.empty())
+        return ret;
+
     int len = MultiByteToWideChar(CP_UTF8, MB_PRECOMPOSED, str.c_str(), -1, NULL, 0);
     if(!len)
         return ret;
@@ -95,6 +107,9 @@ std::wstring utf_widen(const std::string& str)
 std::string utf_narrow(const std::wstring& str)
 {
 	std::string ret;
+
+    if(str.empty())
+        return ret;
 
     int len = WideCharToMultiByte(CP_UTF8, 0, str.c_str(), -1, NULL, 0, NULL, NULL);
     if(!len)

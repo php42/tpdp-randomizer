@@ -262,35 +262,30 @@ std::size_t Archive::get_dir_header_offset(std::size_t file_header_offset) const
 
 std::size_t Archive::get_file(const std::string& filepath, void *dest) const
 {
-    std::size_t offset = get_header_offset(filepath);
+    int index = get_index(filepath);
 
-    if(offset == -1)
+    if(index < 0)
         return 0;
 
-    ArchiveFileHeader file_header(&data_[offset]);
-
-	if(dest == NULL)
-		return file_header.data_size;
-
-	uint8_t *dataptr = &data_[file_header.data_offset + header_.data_offset];
-
-	if(file_header.compressed_size == ARCHIVE_NO_COMPRESSION)
-		memcpy(dest, dataptr, file_header.data_size);
-	else
-		return decompress(dataptr, dest);
-
-	return file_header.data_size;
+    return get_file(index, dest);
 }
 
 std::size_t Archive::get_file(int index, void *dest) const
 {
     assert(index >= 0);
+    if(index < 0)
+        return 0;
     std::size_t offset = (index  * ARCHIVE_FILE_HEADER_SIZE) + header_.filename_table_offset + header_.file_table_offset;
+    if(offset >= (header_.filename_table_offset + header_.dir_table_offset))
+        return 0;
 
     ArchiveFileHeader file_header(&data_[offset]);
 
     if(dest == NULL)
         return file_header.data_size;
+
+    if(file_header.data_size == 0)
+        return 0;
 
     uint8_t *dataptr = &data_[file_header.data_offset + header_.data_offset];
 
@@ -300,6 +295,47 @@ std::size_t Archive::get_file(int index, void *dest) const
         return decompress(dataptr, dest);
 
     return file_header.data_size;
+}
+
+ArcFile Archive::get_file(const std::string& filepath) const
+{
+    int index = get_index(filepath);
+
+    if(index < 0)
+        return ArcFile();
+
+    return get_file(index);
+}
+
+ArcFile Archive::get_file(int index) const
+{
+    assert(index >= 0);
+    if(index < 0)
+        return ArcFile();
+    std::size_t offset = (index  * ARCHIVE_FILE_HEADER_SIZE) + header_.filename_table_offset + header_.file_table_offset;
+    if(offset >= (header_.filename_table_offset + header_.dir_table_offset))
+        return ArcFile();
+
+    ArchiveFileHeader file_header(&data_[offset]);
+
+    if(file_header.data_size == 0)
+        return ArcFile();
+
+    uint8_t *dataptr = &data_[file_header.data_offset + header_.data_offset];
+    char *buf = new char[file_header.data_size];
+
+    if(file_header.compressed_size == ARCHIVE_NO_COMPRESSION)
+        memcpy(buf, dataptr, file_header.data_size);
+    else
+    {
+        if(decompress(dataptr, buf) != file_header.data_size)
+        {
+            delete[] buf;
+            return ArcFile();
+        }
+    }
+
+    return ArcFile(buf, file_header.data_size, index);
 }
 
 bool Archive::repack_file(const std::string & filepath, const void * src, size_t len)
@@ -354,6 +390,11 @@ bool Archive::repack_file(int index, const void * src, size_t len)
     }
 
     return true;
+}
+
+bool Archive::repack_file(const ArcFile& file)
+{
+    return repack_file(file.file_index(), file.data(), file.size());
 }
 
 std::string Archive::get_filename(int index) const

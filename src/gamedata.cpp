@@ -18,6 +18,8 @@
 #include "gamedata.h"
 #include <cstdint>
 #include "util.h"
+#include "textconvert.h"
+#include <cassert>
 
 void SkillData::read(const void *data)
 {
@@ -107,27 +109,27 @@ void StyleData::write(void * data)
         write_le16(&buf[65 + (i * 2)], lv70_skills[i]);
 }
 
-const char *StyleData::type_string()
+std::wstring StyleData::style_string() const
 {
-    switch(style_type)
-    {
+	switch(style_type)
+	{
     case STYLE_NORMAL:
-        return "Normal";
+        return L"Normal";
     case STYLE_POWER:
-        return "Power";
+        return L"Power";
     case STYLE_DEFENSE:
-        return "Defense";
-    case STYLE_ASSIST:
-        return "Assist";
+        return L"Defense";
+	case STYLE_ASSIST:
+		return L"Assist";
     case STYLE_SPEED:
-        return "Speed";
-    case STYLE_EXTRA:
-        return "Extra";
-    default:
-        return "None";
-    }
-
-    return "Error";
+        return L"Speed";
+	case STYLE_EXTRA:
+		return L"Extra";
+    case STYLE_NONE:
+        return L"None";
+	default:
+		return L"UNKNOWN";
+	}
 }
 
 PuppetData::PuppetData()
@@ -173,4 +175,143 @@ void PuppetData::write(void *data)
 
     for(int i = 0; i < 4; ++i)
         styles[i].write(&buf[93 + (i * STYLE_DATA_SIZE)]);
+}
+
+bool ItemData::parse(const CSVEntry& data, bool ynk)
+{
+    if((!ynk) && (data.size() != 11))
+        return false;
+    else if((ynk) && (data.size() != 12))
+        return false;
+
+    if(data[0].empty() || !iswdigit(data[0][0]))
+        return false;
+
+    id = std::stoi(data[0]);
+    name = data[1];
+    price = std::stoi(data[2]);
+    type = std::stoi(data[3]);	/* 255 = unimplemented (id 0 "nothing" also uses this value) */
+    combat = (std::stoi(data[4]) != 0);
+    common = (std::stoi(data[5]) != 0);
+    can_discard = (std::stoi(data[6]) != 0);
+    held = (std::stoi(data[7]) != 0);
+    reincarnation = (std::stoi(data[8]) != 0);
+    skill_id = std::stoi(data[9]);
+    if(!ynk)
+        description = data[10];
+    else
+        description = data[11];
+
+    return true;
+}
+
+bool CSVFile::parse(const void *data, std::size_t len)
+{
+    clear();
+
+    std::wstring file = sjis_to_utf((const char*)data, (const char*)data + len);
+
+    int num_splits = 0;
+
+    /* determine field count from first line. */
+    for(auto& i : file)
+    {
+        if(i == L',')
+            ++num_splits;
+        else if(i == L'\n')
+            break;
+    }
+
+    std::size_t str_begin = 0, str_end = file.find(L"\r\n");
+    while(str_end != std::wstring::npos)
+    {
+        CSVEntry entry;
+        std::size_t split_begin = str_begin, split_end = file.find(L',', str_begin);
+        for(int i = 0; i < num_splits; ++i)
+        {
+            if(split_end > str_end)
+            {
+                clear();
+                return false;
+            }
+
+            entry.push_back(std::move(file.substr(split_begin, split_end - split_begin)));
+            split_begin = split_end + 1;
+            split_end = file.find(L',', split_begin);
+        }
+
+        entry.push_back(std::move(file.substr(split_begin, str_end - split_begin)));
+        value_map_.push_back(std::move(entry));
+        str_begin = str_end + 2;
+        str_end = file.find(L"\r\n", str_begin);
+    }
+
+    return true;
+}
+
+std::string CSVFile::to_string() const
+{
+    std::wstring temp;
+
+    for(const auto& i : value_map_)
+    {
+        if(i.empty())
+            continue;
+
+        for(std::size_t j = 0; j < i.size() - 1; ++j)
+        {
+            temp += i[j];
+            temp += L',';
+        }
+        temp += i.back();
+        temp += L"\r\n";
+    }
+
+    return utf_to_sjis(temp);
+}
+
+std::wstring element_string(int element)
+{
+    switch(element)
+    {
+    case ELEMENT_NONE:
+        return L"None";
+    case ELEMENT_VOID:
+        return L"Void";
+    case ELEMENT_FIRE:
+        return L"Fire";
+    case ELEMENT_WATER:
+        return L"Water";
+    case ELEMENT_NATURE:
+        return L"Nature";
+    case ELEMENT_EARTH:
+        return L"Earth";
+    case ELEMENT_STEEL:
+        return L"Steel";
+    case ELEMENT_WIND:
+        return L"Wind";
+    case ELEMENT_ELECTRIC:
+        return L"Electric";
+    case ELEMENT_LIGHT:
+        return L"Light";
+    case ELEMENT_DARK:
+        return L"Dark";
+    case ELEMENT_NETHER:
+        return L"Nether";
+    case ELEMENT_POISON:
+        return L"Poison";
+    case ELEMENT_FIGHTING:
+        return L"Fighting";
+    case ELEMENT_ILLUSION:
+        return L"Illusion";
+    case ELEMENT_SOUND:
+        return L"Sound";
+    case ELEMENT_DREAM:
+        return L"Dream";
+    case ELEMENT_WARPED:
+        return L"Warped";
+    default:
+        assert(false);
+        return L"Unknown";
+    }
 }

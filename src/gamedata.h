@@ -108,7 +108,7 @@ public:
 
 	void read(const void *data);
     void write(void *data);
-    const char *type_string();
+    std::wstring style_string() const;
 };
 
 /* base data for each puppet (including variants) */
@@ -128,5 +128,56 @@ public:
 	void read(const void *data);
     void write(void *data);
 };
+
+/* base data for items */
+class ItemData
+{
+public:
+    std::wstring name, description;	/* description may contain escape sequences like "\n" */
+    int id, type, price;			/* type = junk, consumable, etc. type 255 = nothing/unimplemented (id 0 is nothing, anything else is unimplemented) */
+    bool combat;					/* can be used in battle */
+    bool common;					/* item is considered to be common */
+    bool can_discard;				/* player is able to discard this item from their inventory */
+    bool held;						/* this item can be held by puppets */
+    bool reincarnation;				/* this item is used for reincarnation */
+    int skill_id;					/* (skill cards) id of the skill this item teaches */
+
+    ItemData() : id(0), type(255), price(0), combat(false), common(false), can_discard(false), held(false), reincarnation(false), skill_id(0) {}
+    ItemData(const CSVEntry& data, bool ynk) { parse(data, ynk); }
+
+    bool parse(const CSVEntry& data, bool ynk);
+
+    /* returns true if item is valid and usable in-game */
+    inline bool is_valid() const { return (type < 255); }
+};
+
+/* parses csv files and splits each field into a separate string */
+class CSVFile
+{
+private:
+    std::vector<CSVEntry> value_map_;
+
+public:
+    CSVFile() {}
+    CSVFile(const void *data, std::size_t len) { parse(data, len); }
+
+    bool parse(const void *data, std::size_t len);
+    const CSVEntry& get_line(int id) const { return value_map_[id]; }
+    const CSVEntry& operator[](int id) const { return value_map_[id]; }
+    void clear() { value_map_.clear(); }
+
+    const std::vector<CSVEntry>& data() const { return value_map_; }
+    std::vector<CSVEntry>& data() { return value_map_; }
+    std::vector<CSVEntry>::const_iterator begin() const { return value_map_.cbegin(); }
+    std::vector<CSVEntry>::const_iterator end() const { return value_map_.cend(); }
+
+    std::size_t num_lines() const { return value_map_.size(); }
+    std::size_t num_fields() const { return value_map_.empty() ? 0 : value_map_[0].size(); }
+    const std::wstring& get_field(unsigned int line, unsigned int field) const { return value_map_[line][field]; }
+
+    std::string to_string() const;
+};
+
+std::wstring element_string(int element);
 
 #endif // GAMEDATA_H

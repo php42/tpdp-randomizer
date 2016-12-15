@@ -19,6 +19,7 @@
 #define ARCHIVE_H
 #include <cstdint>
 #include <string>
+#include <memory>
 
 #define ARCHIVE_MAGIC 0x5844
 #define ARCHIVE_HEADER_SIZE 28
@@ -91,6 +92,32 @@ public:
 	void read(const void *data);
 };
 
+/* container for files extracted from an Archive */
+class ArcFile
+{
+private:
+    std::unique_ptr<char[]> buf_;
+    std::size_t len_;
+    int index_;
+
+public:
+    ArcFile() : buf_(), len_(0) {};
+    ArcFile(char *buf, std::size_t len, int index) : buf_(buf), len_(len), index_(index) {};
+    ArcFile(const ArcFile&) = delete;
+    ArcFile(ArcFile&& other) : buf_(std::move(other.buf_)), len_(other.len_), index_(other.index_) {};
+
+    ArcFile& operator =(const ArcFile&) = delete;
+    ArcFile& operator =(ArcFile&& other) { buf_ = std::move(other.buf_); len_ = other.len_; index_ = other.index_; return *this; }
+
+    char *data() const { return buf_.get(); }
+    std::size_t size() const { return len_; }
+    int file_index() const { return index_; }
+
+    void reset() { buf_.reset(); len_ = 0; index_ = 0; }
+
+    explicit operator bool() const { return ((bool)buf_ && len_ && (index_ > 0)); }
+};
+
 class Archive
 {
 private:
@@ -122,10 +149,13 @@ public:
 	/* returns 0 on error, nonzero otherwise. if dest is NULL, returns decompressed size of the requested file */
 	std::size_t get_file(const std::string& filepath, void *dest) const;
     std::size_t get_file(int index, void *dest) const;
+    ArcFile get_file(const std::string& filepath) const;
+    ArcFile get_file(int index) const;
 
     /* this will replace existing files only */
     bool repack_file(const std::string& filepath, const void *src, size_t len);
     bool repack_file(int index, const void *src, size_t len);
+    bool repack_file(const ArcFile& file);
 
     std::string get_filename(int index) const;
     std::string get_path(int index) const;

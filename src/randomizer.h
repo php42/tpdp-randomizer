@@ -21,9 +21,10 @@
 #define WIN32_LEAN_AND_MEAN
 #include <Windows.h>
 
-#define VERSION_STRING "v1.0.4"
+#define VERSION_STRING "v1.0.5"
 
 #include "gamedata.h"
+#include "archive.h"
 #include <string>
 #include <map>
 #include <set>
@@ -64,17 +65,33 @@ private:
     HWND cb_wild_style_;
     HWND cb_export_locations_;
     HWND cb_use_quota_;
+    HWND cb_healthy_;
+    HWND cb_skillcards_;
+    HWND cb_true_rand_stats_;
+    HWND cb_prefer_same_type_;
+    HWND cb_export_puppets_;
     HWND wnd_quota_;
     HWND tx_quota_;
 
     HFONT hfont_;
 
-    typedef std::map<unsigned int, std::set<std::string>> LocationMap;
+    typedef std::map<unsigned int, std::set<std::wstring>> LocationMap;
     LocationMap loc_map_;
 
     std::map<int, PuppetData> puppets_;
+    std::map<int, SkillData> skills_;
+    std::map<unsigned int, ItemData> items_;
     std::vector<int> valid_puppet_ids_;
-    std::vector<std::string> puppet_names_;
+    std::vector<int> puppet_id_pool_;
+    std::vector<std::wstring> puppet_names_;
+    std::map<int, std::wstring> skill_names_;
+    std::map<int, std::wstring> ability_names_;
+    std::set<unsigned int> valid_skills_;
+    std::set<unsigned int> valid_abilities_;
+    std::set<unsigned int> skillcard_ids_;
+    std::set<unsigned int> held_item_ids_;
+    std::vector<unsigned int> normal_stats_;
+    std::vector<unsigned int> evolved_stats_;
     std::default_random_engine gen_;
     bool is_ynk_;
     bool rand_puppets_;
@@ -96,13 +113,28 @@ private:
     bool rand_wild_style_;
     bool rand_export_locations_;
     bool rand_quota_;
+    bool rand_healthy_;
+    bool rand_skillcards_;
+    bool rand_true_rand_stats_;
+    bool rand_prefer_same_type_;
+    bool rand_export_puppets_;
     int level_mod_;
     int stat_quota_;
 
-    void randomize_puppets(void *data, size_t len);
-    void randomize_trainer(void *src, const void *rand_data);
-    void randomize_skills(void *data, size_t len);
+    bool read_puppets(Archive& archive);
+    bool parse_items(Archive& archive);
+    bool parse_skill_names(Archive& archive);
+    bool parse_ability_names(Archive& archive);
+    bool randomize_puppets(Archive& archive);
+    void randomize_dod_file(void *src, const void *rand_data);
+    bool randomize_trainers(Archive& archive, ArcFile& rand_data);
+    bool randomize_skills(Archive& archive);
     void randomize_mad_file(void *data);
+    bool randomize_compatibility(Archive& archive);
+    bool randomize_wild_puppets(Archive& archive);
+    bool parse_puppet_names(Archive& archive);
+
+    void generate_seed();
 
     void decrypt_puppet(void *src, const void *rand_data, std::size_t len);
     void encrypt_puppet(void *src, const void *rand_data, std::size_t len);
@@ -115,6 +147,9 @@ private:
     HWND set_tooltip(HWND control, wchar_t *msg);
 
     void export_locations(const std::wstring& filepath);
+    void export_puppets(const std::wstring& filepath);
+
+    void clear();
 
 public:
 	Randomizer(HINSTANCE hInstance);
