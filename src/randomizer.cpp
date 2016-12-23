@@ -39,13 +39,14 @@ processorArchitecture='*' publicKeyToken='6595b64144ccf1df' language='*'\"")
 #include <CommCtrl.h>
 #include <ShlObj.h>
 #include <cassert>
+#include <iterator>
 
 #define MW_STYLE (WS_OVERLAPPED | WS_VISIBLE | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX)
 #define CB_STYLE (WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX)
 #define GRP_STYLE (WS_CHILD | WS_VISIBLE | BS_GROUPBOX | WS_GROUP)
 
 #define WND_WIDTH 512
-#define WND_HEIGHT 590
+#define WND_HEIGHT 620
 
 #define IS_CHECKED(chkbox) (SendMessageW(chkbox, BM_GETCHECK, 0, 0) == BST_CHECKED)
 #define SET_CHECKED(chkbox, checked) SendMessageW(chkbox, BM_SETCHECK, checked ? BST_CHECKED : BST_UNCHECKED, 0)
@@ -71,9 +72,10 @@ enum
     ID_WILD_STYLE,
     ID_USE_QUOTA,
     ID_SKILLCARDS,
-    ID_TRUE_RANDOM,
+    ID_TRUE_RAND_STATS,
     ID_PREFER_SAME,
-    ID_HEALTHY
+    ID_HEALTHY,
+    ID_TRUE_RAND_SKILLS
 };
 
 static const int cost_exp_modifiers[] = {70, 85, 100, 115, 130};
@@ -161,7 +163,7 @@ LRESULT CALLBACK Randomizer::WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM 
                     }
                 }
                 break;
-            case ID_TRUE_RANDOM:
+            case ID_TRUE_RAND_STATS:
                 {
                     bool checked = IS_CHECKED(rnd->cb_true_rand_stats_);
                     if(checked)
@@ -186,7 +188,14 @@ LRESULT CALLBACK Randomizer::WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM 
                 break;
             case ID_SKILLSETS:
                 if(!IS_CHECKED(rnd->cb_skills_))
+                {
                     SET_CHECKED(rnd->cb_prefer_same_type_, false);
+                    SET_CHECKED(rnd->cb_true_rand_skills_, false);
+                }
+                break;
+            case ID_TRUE_RAND_SKILLS:
+                if(IS_CHECKED(rnd->cb_true_rand_skills_))
+                    SET_CHECKED(rnd->cb_skills_, true);
                 break;
             default:
                 break;
@@ -240,6 +249,7 @@ HWND Randomizer::set_tooltip(HWND control, wchar_t *msg)
     ti.lpszText = msg;
     SendMessageW(tip, TTM_ADDTOOLW, 0, (LPARAM)&ti);
     SendMessageW(tip, TTM_SETMAXTIPWIDTH, 0, 400);
+    SendMessageW(tip, TTM_SETDELAYTIME, TTDT_AUTOPOP, 30 * 1000);
 
     return tip;
 }
@@ -613,26 +623,10 @@ bool Randomizer::randomize_puppets(Archive& archive)
             count = 0;
         }
 
-        if(rand_skillsets_)
+        /* pre-randomize typings */
+        if(rand_types_)
         {
-            std::vector<unsigned int> skill_deck(valid_base_skills.begin(), valid_base_skills.end());
-            std::shuffle(skill_deck.begin(), skill_deck.end(), gen_);
-            for(auto& i : puppet.base_skills)
-            {
-                if((i != 0) && !skill_deck.empty())
-                {
-                    i = skill_deck.back();
-                    skill_deck.pop_back();
-                }
-            }
-        }
-
-        for(auto& style : puppet.styles)
-        {
-            if(style.style_type == 0)
-                continue;
-
-            if(rand_types_)
+            for(auto& style : puppet.styles)
             {
                 style.element1 = element(gen_);
                 if(!chance75(gen_))
@@ -644,6 +638,53 @@ bool Randomizer::randomize_puppets(Archive& archive)
                         style.element2 = 0;
                 }
             }
+        }
+
+        if(rand_skillsets_)
+        {
+            std::vector<unsigned int> skill_deck;
+            if(rand_true_rand_skills_)
+                skill_deck.assign(valid_skills_.begin(), valid_skills_.end());
+            else
+                skill_deck.assign(valid_base_skills.begin(), valid_base_skills.end());
+            std::shuffle(skill_deck.begin(), skill_deck.end(), gen_);
+            for(auto& i : puppet.base_skills)
+            {
+                if((i != 0) && !skill_deck.empty())
+                {
+                    if(rand_prefer_same_type_ && chance60(gen_))
+                    {
+                        bool found = false;
+                        for(auto it = skill_deck.begin(); it != skill_deck.end(); ++it)
+                        {
+                            auto e = skills_[*it].element;
+                            if((e == puppet.styles[0].element1) || (e == puppet.styles[0].element2))
+                            {
+                                i = *it;
+                                skill_deck.erase(it);
+                                found = true;
+                                break;
+                            }
+                        }
+                        if(!found)
+                        {
+                            i = skill_deck.back();
+                            skill_deck.pop_back();
+                        }
+                    }
+                    else
+                    {
+                        i = skill_deck.back();
+                        skill_deck.pop_back();
+                    }
+                }
+            }
+        }
+
+        for(auto& style : puppet.styles)
+        {
+            if(style.style_type == 0)
+                continue;
 
             if(rand_skillsets_)
             {
@@ -656,7 +697,10 @@ bool Randomizer::randomize_puppets(Archive& archive)
 
                 if((style.lv100_skill != 0) && !valid_lv100_skills.empty())
                 {
-                    skill_deck.assign(valid_lv100_skills.begin(), valid_lv100_skills.end());
+                    if(rand_true_rand_skills_)
+                        skill_deck.assign(valid_skills_.begin(), valid_skills_.end());
+                    else
+                        skill_deck.assign(valid_lv100_skills.begin(), valid_lv100_skills.end());
                     subtract_set(skill_deck, style.skillset);
                     if(!skill_deck.empty())
                     {
@@ -678,19 +722,27 @@ bool Randomizer::randomize_puppets(Archive& archive)
                 }
                 style.skillset.insert(style.lv100_skill);
 
-                if(style.style_type == STYLE_NORMAL)
-                    skill_deck.assign(valid_normal_skills.begin(), valid_normal_skills.end());
+                if(rand_true_rand_skills_)
+                    skill_deck.assign(valid_skills_.begin(), valid_skills_.end());
+                else if(style.style_type == STYLE_NORMAL)
+                {
+                    skill_deck.assign(valid_base_skills.begin(), valid_base_skills.end());
+                    for(auto i : valid_normal_skills)
+                        skill_deck.push_back(i);
+                }
                 else
                     skill_deck.assign(valid_evolved_skills.begin(), valid_evolved_skills.end());
                 subtract_set(skill_deck, style.skillset);
                 std::shuffle(skill_deck.begin(), skill_deck.end(), gen_);
 
                 /* ensure every puppet starts with at least one damaging move */
-                if((style.style_type == STYLE_NORMAL) && !skill_deck.empty())
+                if((style.style_type == STYLE_NORMAL) && !skill_deck.empty() && !rand_true_rand_skills_)
                 {
+                    style.style_skills[0] = 56; /* default to yin energy if we don't find a match below */
                     for(auto it = skill_deck.begin(); it != skill_deck.end(); ++it)
                     {
-                        if((skills_[*it].type != SKILL_TYPE_STATUS) && (skills_[*it].power > 0))
+                        auto e = skills_[*it].element;
+                        if((skills_[*it].type != SKILL_TYPE_STATUS) && (skills_[*it].power > 0) && ((e == style.element1) || (e == style.element2)))
                         {
                             style.style_skills[0] = *it;
                             style.skillset.insert(*it);
@@ -700,13 +752,14 @@ bool Randomizer::randomize_puppets(Archive& archive)
                     }
                 }
 
-                for(int j = ((style.style_type == STYLE_NORMAL) ? 1 : 0); j < 11; ++j)
+                for(int j = (((style.style_type == STYLE_NORMAL) && !rand_true_rand_skills_) ? 1 : 0); j < 11; ++j)
                 {
                     auto& i(style.style_skills[j]);
                     if((i != 0) && !skill_deck.empty())
                     {
                         if(rand_prefer_same_type_ && chance60(gen_))
                         {
+                            bool found = false;
                             for(auto it = skill_deck.begin(); it != skill_deck.end(); ++it)
                             {
                                 auto e = skills_[*it].element;
@@ -714,8 +767,14 @@ bool Randomizer::randomize_puppets(Archive& archive)
                                 {
                                     i = *it;
                                     skill_deck.erase(it);
+                                    found = true;
                                     break;
                                 }
+                            }
+                            if(!found)
+                            {
+                                i = skill_deck.back();
+                                skill_deck.pop_back();
                             }
                         }
                         else
@@ -727,7 +786,10 @@ bool Randomizer::randomize_puppets(Archive& archive)
                     style.skillset.insert(i);
                 }
 
-                skill_deck.assign(valid_lv70_skills.begin(), valid_lv70_skills.end());
+                if(rand_true_rand_skills_)
+                    skill_deck.assign(valid_skills_.begin(), valid_skills_.end());
+                else
+                    skill_deck.assign(valid_lv70_skills.begin(), valid_lv70_skills.end());
                 subtract_set(skill_deck, style.skillset);
                 std::shuffle(skill_deck.begin(), skill_deck.end(), gen_);
 
@@ -737,6 +799,7 @@ bool Randomizer::randomize_puppets(Archive& archive)
                     {
                         if(rand_prefer_same_type_ && chance60(gen_))
                         {
+                            bool found = false;
                             for(auto it = skill_deck.begin(); it != skill_deck.end(); ++it)
                             {
                                 auto e = skills_[*it].element;
@@ -744,8 +807,14 @@ bool Randomizer::randomize_puppets(Archive& archive)
                                 {
                                     i = *it;
                                     skill_deck.erase(it);
+                                    found = true;
                                     break;
                                 }
+                            }
+                            if(!found)
+                            {
+                                i = skill_deck.back();
+                                skill_deck.pop_back();
                             }
                         }
                         else
@@ -1403,10 +1472,10 @@ Randomizer::Randomizer(HINSTANCE hInstance)
     GetClientRect(hwnd_, &rect);
 
     grp_dir_ = CreateWindowW(L"Button", L"Game Folder", GRP_STYLE, 10, 10, rect.right - 20, 55, hwnd_, NULL, hInstance, NULL);
-    grp_rand_ = CreateWindowW(L"Button", L"Randomization", GRP_STYLE, 10, 75, rect.right - 20, 215, hwnd_, NULL, hInstance, NULL);
-    grp_other_ = CreateWindowW(L"Button", L"Other", GRP_STYLE, 10, 300, rect.right - 20, 115, hwnd_, NULL, hInstance, NULL);
-    grp_seed_ = CreateWindowW(L"Button", L"Seed", GRP_STYLE, 10, 425, rect.right - 20, 55, hwnd_, NULL, hInstance, NULL);
-    bn_Randomize_ = CreateWindowW(L"Button", L"Randomize", WS_CHILD | WS_VISIBLE | BS_DEFPUSHBUTTON, (rect.right / 2) - 50, 490, 100, 30, hwnd_, (HMENU)ID_RANDOMIZE, hInstance, NULL);
+    grp_rand_ = CreateWindowW(L"Button", L"Randomization", GRP_STYLE, 10, 75, rect.right - 20, 245, hwnd_, NULL, hInstance, NULL);
+    grp_other_ = CreateWindowW(L"Button", L"Other", GRP_STYLE, 10, 330, rect.right - 20, 115, hwnd_, NULL, hInstance, NULL);
+    grp_seed_ = CreateWindowW(L"Button", L"Seed", GRP_STYLE, 10, 455, rect.right - 20, 55, hwnd_, NULL, hInstance, NULL);
+    bn_Randomize_ = CreateWindowW(L"Button", L"Randomize", WS_CHILD | WS_VISIBLE | BS_DEFPUSHBUTTON, (rect.right / 2) - 50, 520, 100, 30, hwnd_, (HMENU)ID_RANDOMIZE, hInstance, NULL);
     progress_bar_ = CreateWindowW(PROGRESS_CLASSW, NULL, WS_CHILD | WS_VISIBLE, 10, rect.bottom - 30, rect.right - 20, 20, hwnd_, NULL, hInstance, NULL);
     SendMessageW(progress_bar_, PBM_SETSTEP, 1, 0);
 
@@ -1415,18 +1484,18 @@ Randomizer::Randomizer(HINSTANCE hInstance)
     bn_browse_ = CreateWindowW(L"Button", L"Browse", WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON, rect.right - 65, 28, 65, 29, hwnd_, (HMENU)ID_BROWSE, hInstance, NULL);
 
     GetClientRect(grp_other_, &rect);
-    wnd_lvladjust_ = CreateWindowExW(WS_EX_CLIENTEDGE, L"Edit", L"100", WS_CHILD | WS_VISIBLE | ES_NUMBER, 20, 320, 50, 23, hwnd_, NULL, hInstance, NULL);
-    tx_lvladjust_ = CreateWindowW(L"Static", L"% enemy level adjustment", WS_CHILD | WS_VISIBLE | SS_WORDELLIPSIS, 75, 322, (rect.right / 2) - 75, 23, hwnd_, NULL, hInstance, NULL);
-    cb_trainer_party_ = CreateWindowW(L"Button", L"Full trainer party", CB_STYLE, (rect.right / 2) + 20, 323, (rect.right / 2) - 25, 15, hwnd_, NULL, hInstance, NULL);
-    cb_export_locations_ = CreateWindowW(L"Button", L"Export catch locations", CB_STYLE, 20, 355, (rect.right / 2) - 25, 15, hwnd_, NULL, hInstance, NULL);
-    wnd_quota_ = CreateWindowExW(WS_EX_CLIENTEDGE, L"Edit", L"500", WS_CHILD | WS_VISIBLE | ES_NUMBER | WS_DISABLED, (rect.right / 2) + 20, 353, 50, 23, hwnd_, NULL, hInstance, NULL);
-    tx_lvladjust_ = CreateWindowW(L"Static", L"Stat quota", WS_CHILD | WS_VISIBLE | SS_WORDELLIPSIS, (rect.right / 2) + 75, 355, (rect.right / 2) - 75, 23, hwnd_, NULL, hInstance, NULL);
-    cb_healthy_ = CreateWindowW(L"Button", L"Healthy", CB_STYLE, 20, 385, (rect.right / 2) - 25, 15, hwnd_, (HMENU)ID_HEALTHY, hInstance, NULL);
-    cb_export_puppets_ = CreateWindowW(L"Button", L"Dump puppet stats", CB_STYLE, (rect.right / 2) + 20, 385, (rect.right / 2) - 25, 15, hwnd_, NULL, hInstance, NULL);
+    wnd_lvladjust_ = CreateWindowExW(WS_EX_CLIENTEDGE, L"Edit", L"100", WS_CHILD | WS_VISIBLE | ES_NUMBER, 20, 350, 50, 23, hwnd_, NULL, hInstance, NULL);
+    tx_lvladjust_ = CreateWindowW(L"Static", L"% enemy level adjustment", WS_CHILD | WS_VISIBLE | SS_WORDELLIPSIS, 75, 352, (rect.right / 2) - 75, 23, hwnd_, NULL, hInstance, NULL);
+    cb_trainer_party_ = CreateWindowW(L"Button", L"Full trainer party", CB_STYLE, (rect.right / 2) + 20, 353, (rect.right / 2) - 25, 15, hwnd_, NULL, hInstance, NULL);
+    cb_export_locations_ = CreateWindowW(L"Button", L"Export catch locations", CB_STYLE, 20, 385, (rect.right / 2) - 25, 15, hwnd_, NULL, hInstance, NULL);
+    wnd_quota_ = CreateWindowExW(WS_EX_CLIENTEDGE, L"Edit", L"500", WS_CHILD | WS_VISIBLE | ES_NUMBER | WS_DISABLED, (rect.right / 2) + 20, 383, 50, 23, hwnd_, NULL, hInstance, NULL);
+    tx_lvladjust_ = CreateWindowW(L"Static", L"Stat quota", WS_CHILD | WS_VISIBLE | SS_WORDELLIPSIS, (rect.right / 2) + 75, 385, (rect.right / 2) - 75, 23, hwnd_, NULL, hInstance, NULL);
+    cb_healthy_ = CreateWindowW(L"Button", L"Healthy", CB_STYLE, 20, 415, (rect.right / 2) - 25, 15, hwnd_, (HMENU)ID_HEALTHY, hInstance, NULL);
+    cb_export_puppets_ = CreateWindowW(L"Button", L"Dump puppet stats", CB_STYLE, (rect.right / 2) + 20, 415, (rect.right / 2) - 25, 15, hwnd_, NULL, hInstance, NULL);
 
     GetClientRect(grp_seed_, &rect);
-    wnd_seed_ = CreateWindowExW(WS_EX_CLIENTEDGE, L"Edit", L"0", WS_CHILD | WS_VISIBLE | ES_NUMBER, 20, 445, rect.right - 125, 25, hwnd_, NULL, hInstance, NULL);
-    bn_generate_ = CreateWindowW(L"Button", L"Generate", WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON, rect.right - 100, 443, 100, 29, hwnd_, (HMENU)ID_GENERATE, hInstance, NULL);
+    wnd_seed_ = CreateWindowExW(WS_EX_CLIENTEDGE, L"Edit", L"0", WS_CHILD | WS_VISIBLE | ES_NUMBER, 20, 475, rect.right - 125, 25, hwnd_, NULL, hInstance, NULL);
+    bn_generate_ = CreateWindowW(L"Button", L"Generate", WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON, rect.right - 100, 473, 100, 29, hwnd_, (HMENU)ID_GENERATE, hInstance, NULL);
     generate_seed();
 
     GetClientRect(grp_rand_, &rect);
@@ -1451,8 +1520,9 @@ Randomizer::Randomizer(HINSTANCE hInstance)
     cb_wild_style_ = CreateWindowW(L"Button", L"Wild Puppet Styles", CB_STYLE, x + (width / 3), y + 120, width_cb, 15, hwnd_, (HMENU)ID_WILD_STYLE, hInstance, NULL);
     cb_use_quota_ = CreateWindowW(L"Button", L"Use stat quota", CB_STYLE, x + ((width / 3) * 2), y + 120, width_cb, 15, hwnd_, (HMENU)ID_USE_QUOTA, hInstance, NULL);
     cb_skillcards_ = CreateWindowW(L"Button", L"Skill Cards", CB_STYLE, x, y + 150, width_cb, 15, hwnd_, (HMENU)ID_SKILLCARDS, hInstance, NULL);
-    cb_true_rand_stats_ = CreateWindowW(L"Button", L"True random stats", CB_STYLE, x + (width / 3), y + 150, width_cb, 15, hwnd_, (HMENU)ID_TRUE_RANDOM, hInstance, NULL);
+    cb_true_rand_stats_ = CreateWindowW(L"Button", L"True random stats", CB_STYLE, x + (width / 3), y + 150, width_cb, 15, hwnd_, (HMENU)ID_TRUE_RAND_STATS, hInstance, NULL);
     cb_prefer_same_type_ = CreateWindowW(L"Button", L"Prefer same type", CB_STYLE, x + ((width / 3) * 2), y + 150, width_cb, 15, hwnd_, (HMENU)ID_PREFER_SAME, hInstance, NULL);
+    cb_true_rand_skills_ = CreateWindowW(L"Button", L"True random skills", CB_STYLE, x, y + 180, width_cb, 15, hwnd_, (HMENU)ID_TRUE_RAND_SKILLS, hInstance, NULL);
 
     set_tooltip(cb_skills_, L"Randomize the skills each puppet can learn");
     set_tooltip(cb_stats_, L"Randomize puppet base stats");
@@ -1479,6 +1549,7 @@ Randomizer::Randomizer(HINSTANCE hInstance)
     set_tooltip(cb_true_rand_stats_, L"Puppet base stats will be completely random");
     set_tooltip(cb_prefer_same_type_, L"Randomization will favor skills that match a puppets typing");
     set_tooltip(cb_export_puppets_, L"Write puppet stats/skillsets/etc to puppets.txt in the game folder");
+    set_tooltip(cb_true_rand_skills_, L"Any puppet can have any skill\r\nThe default behaviour preserves the \"move pools\" of puppets, meaning that normal puppets will generally have less powerful moves.\r\nThis option disables that.");
 
     NONCLIENTMETRICSW ncm = {0};
     ncm.cbSize = sizeof(ncm);
@@ -1559,6 +1630,7 @@ bool Randomizer::randomize()
     rand_true_rand_stats_ = IS_CHECKED(cb_true_rand_stats_);
     rand_prefer_same_type_ = IS_CHECKED(cb_prefer_same_type_);
     rand_export_puppets_ = IS_CHECKED(cb_export_puppets_);
+    rand_true_rand_skills_ = IS_CHECKED(cb_true_rand_skills_);
     rand_puppets_ = rand_skillsets_ || rand_stats_ || rand_types_ || rand_abilities_;
     rand_skill_element_ = IS_CHECKED(cb_skill_element_);
     rand_skill_power_ = IS_CHECKED(cb_skill_power_);

@@ -117,7 +117,7 @@ class PuppetData
 public:
 	//char name[32];
 	uint8_t cost;                   /* exp cost modifier */
-	uint16_t base_skills[5];        /* skills available from lvl 1 */
+	uint16_t base_skills[5];        /* lvl 7, 10, 14, 19, 24 */
 	uint16_t item_drop_table[4];	/* items dropped when defeated in the wild */
 	uint16_t id;                    /* id isn't actually parsed, but is indicated by its position in the file */
 	StyleData styles[4];
