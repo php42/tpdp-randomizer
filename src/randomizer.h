@@ -21,7 +21,7 @@
 #define WIN32_LEAN_AND_MEAN
 #include <Windows.h>
 
-#define VERSION_STRING "v1.0.6"
+#define VERSION_STRING "v1.0.7"
 
 #include "gamedata.h"
 #include "archive.h"

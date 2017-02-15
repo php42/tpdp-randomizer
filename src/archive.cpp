@@ -54,9 +54,9 @@ void ArchiveFileHeader::read(const void *data)
 
 	filename_offset = read_le32(buf);
 	unknown = read_le32(&buf[4]);
-	unk1 = *(const uint64_t*)&buf[8];
-	unk2 = *(const uint64_t*)&buf[16];
-	unk3 = *(const uint64_t*)&buf[24];
+	unk1 = read_le64(&buf[8]);
+	unk2 = read_le64(&buf[16]);
+	unk3 = read_le64(&buf[24]);
 	data_offset = read_le32(&buf[32]);
 	data_size = read_le32(&buf[36]);
 	compressed_size = read_le32(&buf[40]);
@@ -502,16 +502,15 @@ std::size_t Archive::decompress(const void *src, void *dest) const
 	inptr = (const uint8_t*)src;
 	outptr = (uint8_t*)dest;
 
-	output_size = *((uint32_t*)&inptr[0]);
-	input_size = *((uint32_t*)&inptr[4]) - 9;
+	output_size = read_le32(&inptr[0]);
+	input_size = read_le32(&inptr[4]);
+    endin = inptr + input_size;
 
 	if(dest == NULL)
 		return output_size;
 
 	key = inptr[8];
-
 	inptr += 9;
-	endin = inptr + input_size;
 
 	while(inptr < endin)
 	{

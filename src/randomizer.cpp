@@ -81,7 +81,7 @@ enum
 static const int cost_exp_modifiers[] = {70, 85, 100, 115, 130};
 static const int cost_exp_modifiers_ynk[] = {85, 92, 100, 107, 115};
 
-template<typename T> inline void subtract_set(std::vector<T> vec, std::set<T> s)
+template<typename T> void subtract_set(std::vector<T>& vec, std::set<T>& s)
 {
     auto it = vec.begin();
     while(it != vec.end())
@@ -1023,10 +1023,13 @@ void Randomizer::randomize_dod_file(void *src, const void *rand_data)
             while(total < 130)
             {
                 int j = ev(gen_);
+                int k = pick_ev(gen_);
+                if((puppet.evs[k] + j) > 64)
+                    j = 64 - puppet.evs[k];
                 if((total + j) > 130)
                     j = 130 - total;
                 total += j;
-                puppet.evs[pick_ev(gen_)] += j;
+                puppet.evs[k] += j;
             }
 
             if(coin_flip(gen_))
