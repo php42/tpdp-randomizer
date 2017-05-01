@@ -122,8 +122,8 @@ class Archive
 {
 private:
 	ArchiveHeader header_;
-	std::size_t data_length_;
-	uint8_t *data_;
+	std::size_t data_used_, data_max_;
+    std::unique_ptr<char[]> data_;
 	bool is_ynk_;
 
 	Archive(const Archive&) = delete;
@@ -137,8 +137,8 @@ private:
 	std::size_t decompress(const void *src, void *dest) const;
 
 public:
-	Archive() : header_(), data_length_(0), data_(NULL), is_ynk_(false) {};
-	~Archive();
+	Archive() : header_(), data_used_(0), data_max_(0), is_ynk_(false) {};
+    ~Archive() { close(); }
 
 	bool open(const std::string& filename);
 	bool open(const std::wstring&  filename);
@@ -169,7 +169,7 @@ public:
 
 	bool is_ynk() const {return is_ynk_;}
 
-	void close();
+    void close() { data_.reset(); }
 };
 
 #endif // ARCHIVE_H

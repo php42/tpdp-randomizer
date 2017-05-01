@@ -130,7 +130,7 @@ LRESULT CALLBACK Randomizer::WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM 
                 break;
             case ID_RANDOMIZE:
                 if(MessageBoxW(hwnd, L"This will permanently modify game files.\r\nIf you have not backed up your game folder, you may wish to do so now.\r\n"
-                                     "Also note that re-randomizing the same game data is not advised. Please restore your backup between randomizations.",
+                                     "Also note that randomization is cumulative. Re-randomizing the same game data may have unexpected results.",
                                      L"Notice", MB_OKCANCEL | MB_ICONINFORMATION) != IDOK)
                     break;
                 if(rnd->randomize())

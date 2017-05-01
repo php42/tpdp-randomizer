@@ -26,6 +26,10 @@
 static const uint8_t KEY[] = {0x9B, 0x16, 0xFE, 0x3A, 0xB9, 0xE0, 0xA3, 0x17, 0x9A, 0x23, 0x20, 0xAE};
 static const uint8_t KEY_YNK[] = {0x9B, 0x16, 0xFE, 0x3A, 0x98, 0xC2, 0xA0, 0x73, 0x0B, 0x0B, 0xB5, 0x90};
 
+/* the archive file format uses relative offsets all over the place, so there
+ * is a lot of weird offset arithmetic going on in here.
+ * it's a complete mess right now that could certainly be handled better */
+
 void ArchiveHeader::read(const void *data)
 {
 	const char *buf = (const char*)data;
@@ -74,10 +78,10 @@ void ArchiveDirHeader::read(const void *data)
 
 bool Archive::decrypt()
 {
-	if(data_length_ < ARCHIVE_HEADER_SIZE)
+	if(data_used_ < ARCHIVE_HEADER_SIZE)
 		return false;
 
-	if((read_le16(data_) ^ read_le16(KEY)) != ARCHIVE_MAGIC)
+	if((read_le16(data_.get()) ^ read_le16(KEY)) != ARCHIVE_MAGIC)
 		return false;
 
     if((read_le16(&data_[2]) ^ read_le16(&KEY[2])) > 5)
@@ -99,14 +103,14 @@ bool Archive::decrypt()
 		return false;
 
 	std::size_t j = 0;
-	for(std::size_t i = 0; i < data_length_; ++i)
+	for(std::size_t i = 0; i < data_used_; ++i)
 	{
 		data_[i] ^= key[j++];
 		if(j >= sizeof(KEY))
 			j = 0;
 	}
 
-	header_.read(data_);
+	header_.read(data_.get());
 
 	return true;
 }
@@ -116,7 +120,7 @@ void Archive::encrypt()
     const uint8_t *key = is_ynk_ ? KEY_YNK : KEY;
 
     std::size_t j = 0;
-    for(std::size_t i = 0; i < data_length_; ++i)
+    for(std::size_t i = 0; i < data_used_; ++i)
     {
         data_[i] ^= key[j++];
         if(j >= sizeof(KEY))
@@ -124,18 +128,18 @@ void Archive::encrypt()
     }
 }
 
-Archive::~Archive()
-{
-	close();
-}
-
 bool Archive::open(const std::string& filename)
 {
 	close();
 
-	data_ = (uint8_t*)read_file(filename, data_length_);
-	if(data_ == NULL)
+    std::size_t sz;
+	auto buf = read_file(filename, sz);
+	if(buf == nullptr)
         return false;
+
+    data_.reset(buf);
+    data_used_ = sz;
+    data_max_ = sz;
 
 	if(!decrypt())
 	{
@@ -152,9 +156,14 @@ bool Archive::open(const std::wstring& filename)
 {
 	close();
 
-	data_ = (uint8_t*)read_file(filename, data_length_);
-	if(data_ == NULL)
+    std::size_t sz;
+    auto buf = read_file(filename, sz);
+    if(buf == nullptr)
         return false;
+
+    data_.reset(buf);
+    data_used_ = sz;
+    data_max_ = sz;
 
 	if(!decrypt())
 	{
@@ -171,7 +180,7 @@ bool Archive::save(const std::string& filename)
 {
     encrypt();
 
-    bool ret = write_file(filename, data_, data_length_);
+    bool ret = write_file(filename, data_.get(), data_used_);
 
     /* encryption is symmetrical, this is actually a decrypt */
     encrypt();
@@ -183,7 +192,7 @@ bool Archive::save(const std::wstring& filename)
 {
     encrypt();
 
-    bool ret = write_file(filename, data_, data_length_);
+    bool ret = write_file(filename, data_.get(), data_used_);
 
     /* encryption is symmetrical, this is actually a decrypt */
     encrypt();
@@ -192,7 +201,7 @@ bool Archive::save(const std::wstring& filename)
 }
 
 /* WARNING: this code assumes directory headers are nested, it
-* does not check for proper folder heirarchy. */
+ * does not check for proper folder heirarchy. */
 std::size_t Archive::get_header_offset(const std::string& filepath) const
 {
     std::string file = filepath;
@@ -211,7 +220,7 @@ std::size_t Archive::get_header_offset(const std::string& filepath) const
     {
         std::string dir = file.substr(0, pos);
         bool found = false;
-        for(; i < data_length_; i += ARCHIVE_DIR_HEADER_SIZE)
+        for(; i < data_used_; i += ARCHIVE_DIR_HEADER_SIZE)
         {
             ArchiveDirHeader dir_header(&data_[i]);
             ArchiveFileHeader file_header(&data_[dir_header.dir_offset + file_table_offset]);
@@ -251,7 +260,7 @@ std::size_t Archive::get_dir_header_offset(std::size_t file_header_offset) const
 {
     std::size_t offset = header_.filename_table_offset + header_.dir_table_offset;
 
-    for(; offset < data_length_; offset += ARCHIVE_DIR_HEADER_SIZE)
+    for(; offset < data_used_; offset += ARCHIVE_DIR_HEADER_SIZE)
     {
         if(ArchiveDirHeader(&data_[offset]).dir_offset == file_header_offset)
             return offset;
@@ -287,7 +296,7 @@ std::size_t Archive::get_file(int index, void *dest) const
     if(file_header.data_size == 0)
         return 0;
 
-    uint8_t *dataptr = &data_[file_header.data_offset + header_.data_offset];
+    auto dataptr = &data_[file_header.data_offset + header_.data_offset];
 
     if(file_header.compressed_size == ARCHIVE_NO_COMPRESSION)
         memcpy(dest, dataptr, file_header.data_size);
@@ -321,7 +330,7 @@ ArcFile Archive::get_file(int index) const
     if(file_header.data_size == 0)
         return ArcFile();
 
-    uint8_t *dataptr = &data_[file_header.data_offset + header_.data_offset];
+    auto dataptr = &data_[file_header.data_offset + header_.data_offset];
     char *buf = new char[file_header.data_size];
 
     if(file_header.compressed_size == ARCHIVE_NO_COMPRESSION)
@@ -362,18 +371,30 @@ bool Archive::repack_file(int index, const void * src, size_t len)
 
     size_t orig_len = (file_header.compressed_size == ARCHIVE_NO_COMPRESSION) ? file_header.data_size : file_header.compressed_size;
     size_t diff = len - orig_len;
+    size_t new_used = data_used_ + diff;
 
-    uint8_t *buf = new uint8_t[data_length_ + diff];
-    memcpy(buf, data_, file_header.data_offset + header_.data_offset);
-    memcpy(&buf[file_header.data_offset + header_.data_offset], src, len);
+    if(new_used > data_max_) /* buffer is too small for the new file, reallocate */
+    {
+        data_max_ = (std::size_t)(new_used * 1.15); /* allocate 15% extra to avoid future reallocations */
+        auto buf = new char[data_max_];
+        memcpy(buf, data_.get(), file_header.data_offset + header_.data_offset);    /* copy everything up to the file we're replacing */
+        memcpy(&buf[file_header.data_offset + header_.data_offset], src, len);      /* copy the new file */
 
-    size_t i = file_header.data_offset + header_.data_offset + len;
-    size_t j = file_header.data_offset + header_.data_offset + orig_len;
-    memcpy(&buf[i], &data_[j], data_length_ - j);
+        size_t i = file_header.data_offset + header_.data_offset + len;
+        size_t j = file_header.data_offset + header_.data_offset + orig_len;
+        memcpy(&buf[i], &data_[j], data_used_ - j); /* copy everything after the file we replaced */
 
-    data_length_ += diff;
-    delete[] data_;
-    data_ = buf;
+        data_.reset(buf); /* replace the old buffer */
+    }
+    else /* shift everything after the file we're replacing to account for the size difference */
+    {
+        size_t i = file_header.data_offset + header_.data_offset + len;
+        size_t j = file_header.data_offset + header_.data_offset + orig_len;
+        memmove(&data_[i], &data_[j], data_used_ - j);                              /* adjust the gap */
+        memcpy(&data_[file_header.data_offset + header_.data_offset], src, len);    /* copy new file into the gap */
+    }
+
+    data_used_ = new_used;
 
     header_.filename_table_offset += diff;
     write_le32(&data_[12], header_.filename_table_offset);
@@ -418,7 +439,7 @@ std::string Archive::get_path(int index) const
     std::size_t file_header_offset = (index  * ARCHIVE_FILE_HEADER_SIZE) + header_.filename_table_offset + header_.file_table_offset;
     std::size_t offset = header_.filename_table_offset + header_.dir_table_offset;
 
-    for(; offset < data_length_; offset += ARCHIVE_DIR_HEADER_SIZE)
+    for(; offset < data_used_; offset += ARCHIVE_DIR_HEADER_SIZE)
     {
         ArchiveDirHeader dir_header(&data_[offset]);
         int begin = (int)(dir_header.file_header_offset / ARCHIVE_FILE_HEADER_SIZE);
@@ -481,15 +502,6 @@ bool Archive::is_dir(int index) const
 {
     assert(index >= 0);
     return (get_dir_header_offset(index * ARCHIVE_FILE_HEADER_SIZE) != -1);
-}
-
-void Archive::close()
-{
-	if(data_ != NULL)
-	{
-		delete[] data_;
-		data_ = NULL;
-	}
 }
 
 std::size_t Archive::decompress(const void *src, void *dest) const
