@@ -19,6 +19,9 @@
 #define FILESYSTEM_H
 #include <string>
 #include <cstdint>
+#include <memory>
+
+typedef std::unique_ptr<char[]> FileBuf;
 
 bool copy_file(const std::string& src, const std::string& dest);
 bool copy_file(const std::wstring& src, const std::wstring& dest);
@@ -26,11 +29,10 @@ bool copy_file(const std::wstring& src, const std::wstring& dest);
 bool create_directory(const std::string& dir);
 bool create_directory(const std::wstring& dir);
 
-/* read an entire file into memory. returns a pointer to the memory block, or NULL on failure.
- * after a successful call, size will contain the size of the returned memory block.
- * returned pointer must be freed with delete[]. */
-char *read_file(const std::string& file, std::size_t& size);
-char *read_file(const std::wstring& file, std::size_t& size);
+/* read an entire file into memory. returns a unique_ptr to the memory block, or NULL on failure.
+ * after a successful call, 'size' will contain the size of the returned memory block. */
+FileBuf read_file(const std::string& file, std::size_t& size);
+FileBuf read_file(const std::wstring& file, std::size_t& size);
 
 bool write_file(const std::string& file, const void *buf, std::size_t len);
 bool write_file(const std::wstring& file, const void *buf, std::size_t len);

@@ -21,7 +21,7 @@
 #define WIN32_LEAN_AND_MEAN
 #include <Windows.h>
 
-#define VERSION_STRING "v1.0.7"
+#define VERSION_STRING "v1.0.8"
 
 #include "gamedata.h"
 #include "archive.h"
@@ -73,6 +73,7 @@ private:
     HWND wnd_quota_;
     HWND tx_quota_;
     HWND cb_true_rand_skills_;
+    HWND cb_stab_;
 
     HFONT hfont_;
 
@@ -120,6 +121,7 @@ private:
     bool rand_prefer_same_type_;
     bool rand_export_puppets_;
     bool rand_true_rand_skills_;
+    bool rand_stab_;
     int level_mod_;
     int stat_quota_;
 

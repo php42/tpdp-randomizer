@@ -47,38 +47,36 @@ bool copy_file(const std::wstring& src, const std::wstring& dest)
 #endif // _WIN32
 }
 
-char *read_file(const std::wstring& file, std::size_t& size)
+FileBuf read_file(const std::wstring& file, std::size_t& size)
 {
 #ifdef _WIN32
     HANDLE infile;
 
     infile = CreateFileW(file.c_str(), GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
     if(infile == INVALID_HANDLE_VALUE)
-        return NULL;
+        return FileBuf();
 
     LARGE_INTEGER len;
     DWORD bytes_read;
     if(!GetFileSizeEx(infile, &len))
     {
         CloseHandle(infile);
-        return NULL;
+        return FileBuf();
     }
 
-    char *buf = new char[(unsigned int)len.QuadPart];
+    FileBuf buf(new char[(unsigned int)len.QuadPart]);
 
-    if(!ReadFile(infile, buf, (DWORD)len.QuadPart, &bytes_read, NULL))
+    if(!ReadFile(infile, buf.get(), (DWORD)len.QuadPart, &bytes_read, NULL))
     {
         CloseHandle(infile);
-        delete[] buf;
-        return NULL;
+        return FileBuf();
     }
 
     CloseHandle(infile);
 
     if(bytes_read != (DWORD)len.QuadPart)
     {
-        delete[] buf;
-        return NULL;
+        return FileBuf();
     }
 
     size = (std::size_t)len.QuadPart;
@@ -87,21 +85,20 @@ char *read_file(const std::wstring& file, std::size_t& size)
     boost::filesystem::path path(file);
     std::ifstream infile(path.native(), std::ios::binary | std::ios::ate);
     if(!infile)
-        return NULL;
+        return FileBuf();
 
     std::size_t len = infile.tellg();
 
     if(len == 0)
-        return NULL;
+        return FileBuf();
 
     infile.seekg(0);
 
-    char *buf = new char[len];
+    FileBuf buf(new char[len]);
 
-    if(!infile.read(buf, len))
+    if(!infile.read(buf.get(), len))
     {
-        delete[] buf;
-        return NULL;
+        return FileBuf();
     }
 
     size = len;
@@ -109,38 +106,36 @@ char *read_file(const std::wstring& file, std::size_t& size)
 #endif // _WIN32
 }
 
-char *read_file(const std::string& file, std::size_t& size)
+FileBuf read_file(const std::string& file, std::size_t& size)
 {
 #ifdef _WIN32
     HANDLE infile;
 
     infile = CreateFileA(file.c_str(), GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
     if(infile == INVALID_HANDLE_VALUE)
-        return NULL;
+        return FileBuf();
 
     LARGE_INTEGER len;
     DWORD bytes_read;
     if(!GetFileSizeEx(infile, &len))
     {
         CloseHandle(infile);
-        return NULL;
+        return FileBuf();
     }
 
-    char *buf = new char[(unsigned int)len.QuadPart];
+    FileBuf buf(new char[(unsigned int)len.QuadPart]);
 
-    if(!ReadFile(infile, buf, (DWORD)len.QuadPart, &bytes_read, NULL))
+    if(!ReadFile(infile, buf.get(), (DWORD)len.QuadPart, &bytes_read, NULL))
     {
         CloseHandle(infile);
-        delete[] buf;
-        return NULL;
+        return FileBuf();
     }
 
     CloseHandle(infile);
 
     if(bytes_read != (DWORD)len.QuadPart)
     {
-        delete[] buf;
-        return NULL;
+        return FileBuf();
     }
 
     size = (std::size_t)len.QuadPart;
@@ -148,21 +143,20 @@ char *read_file(const std::string& file, std::size_t& size)
 #else
     std::ifstream infile(file, std::ios::binary | std::ios::ate);
     if(!infile)
-        return NULL;
+        return FileBuf();
 
     std::size_t len = infile.tellg();
 
     if(len == 0)
-        return NULL;
+        return FileBuf();
 
     infile.seekg(0);
 
-    char *buf = new char[len];
+    FileBuf buf(new char[len]);
 
-    if(!infile.read(buf, len))
+    if(!infile.read(buf.get(), len))
     {
-        delete[] buf;
-        return NULL;
+        return FileBuf();
     }
 
     size = len;

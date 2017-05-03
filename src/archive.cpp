@@ -76,104 +76,109 @@ void ArchiveDirHeader::read(const void *data)
 	file_header_offset = read_le32(&buf[12]);
 }
 
-bool Archive::decrypt()
+void Archive::decrypt()
 {
-	if(data_used_ < ARCHIVE_HEADER_SIZE)
-		return false;
+    if(data_used_ < ARCHIVE_HEADER_SIZE)
+        throw ArcError("Archive corrupt or unrecognized format.");
 
 	if((read_le16(data_.get()) ^ read_le16(KEY)) != ARCHIVE_MAGIC)
-		return false;
+        throw ArcError("Archive corrupt or unrecognized format.");
 
     if((read_le16(&data_[2]) ^ read_le16(&KEY[2])) > 5)
-        return false;
-
-	const uint8_t *key = NULL;
+        throw ArcError("Unsupported archive version.\r\nUse version 5 of the archive file format or yell at me to support newer versions.");
 
 	if((read_le32(&data_[8]) ^ read_le32(&KEY[8])) == 0x1c)
 	{
 		is_ynk_ = false;
-		key = KEY;
 	}
 	else if((read_le32(&data_[8]) ^ read_le32(&KEY_YNK[8])) == 0x1c)
 	{
 		is_ynk_ = true;
-		key = KEY_YNK;
 	}
 	else
-		return false;
+        throw ArcError("Archive corrupt or unrecognized format.");
 
-	std::size_t j = 0;
-	for(std::size_t i = 0; i < data_used_; ++i)
-	{
-		data_[i] ^= key[j++];
-		if(j >= sizeof(KEY))
-			j = 0;
-	}
+    /* encryption is symmetrical, this is actually a decrypt */
+    encrypt();
 
 	header_.read(data_.get());
-
-	return true;
 }
 
 void Archive::encrypt()
 {
     const uint8_t *key = is_ynk_ ? KEY_YNK : KEY;
 
-    std::size_t j = 0;
-    for(std::size_t i = 0; i < data_used_; ++i)
+    uint32_t k1 = read_le32(key);
+    uint32_t k2 = read_le32(key + 4);
+    uint32_t k3 = read_le32(key + 8);
+
+    auto data = data_.get();
+    std::size_t pos = 0;
+
+    /* optimization while we have at least 12 bytes of data */
+    for(; (data_used_ - pos) >= 12; pos += 12)
     {
-        data_[i] ^= key[j++];
+        *(uint32_t*)&data[pos] ^= k1;
+        *(uint32_t*)&data[pos + 4] ^= k2;
+        *(uint32_t*)&data[pos + 8] ^= k3;
+    }
+
+    /* finish off whatever is left */
+    std::size_t j = 0;
+    for(; pos < data_used_; ++pos)
+    {
+        data[pos] ^= key[j++];
         if(j >= sizeof(KEY))
             j = 0;
     }
 }
 
-bool Archive::open(const std::string& filename)
+void Archive::open(const std::string& filename)
 {
 	close();
 
     std::size_t sz;
 	auto buf = read_file(filename, sz);
-	if(buf == nullptr)
-        return false;
+    if(buf == nullptr)
+        throw ArcError("File I/O read error.");
 
-    data_.reset(buf);
+    data_ = std::move(buf);
     data_used_ = sz;
     data_max_ = sz;
 
-	if(!decrypt())
-	{
-		close();
-		return false;
-	}
-
-    //write_file((filename + "_raw"), data_, data_length_);
-
-	return true;
+    try
+    {
+        decrypt();
+    }
+    catch(const ArcError&)
+    {
+        close();
+        throw;
+    }
 }
 
-bool Archive::open(const std::wstring& filename)
+void Archive::open(const std::wstring& filename)
 {
 	close();
 
     std::size_t sz;
     auto buf = read_file(filename, sz);
     if(buf == nullptr)
-        return false;
+        throw ArcError("File I/O read error.");
 
-    data_.reset(buf);
+    data_ = std::move(buf);
     data_used_ = sz;
     data_max_ = sz;
 
-	if(!decrypt())
-	{
-		close();
-		return false;
-	}
-
-    //write_file((filename + L"_raw"), data_, data_length_);
-
-	return true;
+    try
+    {
+        decrypt();
+    }
+    catch(const ArcError&)
+    {
+        close();
+        throw;
+    }
 }
 
 bool Archive::save(const std::string& filename)

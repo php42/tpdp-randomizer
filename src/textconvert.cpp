@@ -96,7 +96,7 @@ std::wstring utf_widen(const std::string& str)
     if(!MultiByteToWideChar(CP_UTF8, MB_PRECOMPOSED, str.c_str(), str.size(), buf.get(), len))
         return ret;
 
-    ret.assign(buf.get(), str.size());
+    ret.assign(buf.get(), len);
 
 	return ret;
 }
@@ -116,7 +116,7 @@ std::string utf_narrow(const std::wstring& str)
     if(!WideCharToMultiByte(CP_UTF8, 0, str.c_str(), str.size(), buf.get(), len, NULL, NULL))
         return ret;
 
-    ret.assign(buf.get(), str.size());
+    ret.assign(buf.get(), len);
 
 	return ret;
 }

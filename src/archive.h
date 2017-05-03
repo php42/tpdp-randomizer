@@ -20,6 +20,7 @@
 #include <cstdint>
 #include <string>
 #include <memory>
+#include <exception>
 
 #define ARCHIVE_MAGIC 0x5844
 #define ARCHIVE_HEADER_SIZE 28
@@ -27,6 +28,11 @@
 #define ARCHIVE_FILE_HEADER_SIZE 44
 #define ARCHIVE_DIR_HEADER_SIZE 16
 #define ARCHIVE_NO_COMPRESSION 0xffffffff
+
+struct ArcError : public std::runtime_error
+{
+    using std::runtime_error::runtime_error;
+};
 
 class ArchiveHeader
 {
@@ -132,7 +138,7 @@ private:
     std::size_t get_header_offset(const std::string& filepath) const;
     std::size_t get_dir_header_offset(std::size_t file_header_offset) const;
 
-	bool decrypt();
+	void decrypt();
     void encrypt();
 	std::size_t decompress(const void *src, void *dest) const;
 
@@ -140,11 +146,12 @@ public:
 	Archive() : header_(), data_used_(0), data_max_(0), is_ynk_(false) {};
     ~Archive() { close(); }
 
-	bool open(const std::string& filename);
-	bool open(const std::wstring&  filename);
+    /* throws ArcError on failure */
+	void open(const std::string& filename);
+	void open(const std::wstring& filename);
 
     bool save(const std::string& filename);
-    bool save(const std::wstring&  filename);
+    bool save(const std::wstring& filename);
 
 	/* returns 0 on error, nonzero otherwise. if dest is NULL, returns decompressed size of the requested file */
 	std::size_t get_file(const std::string& filepath, void *dest) const;

@@ -75,7 +75,8 @@ enum
     ID_TRUE_RAND_STATS,
     ID_PREFER_SAME,
     ID_HEALTHY,
-    ID_TRUE_RAND_SKILLS
+    ID_TRUE_RAND_SKILLS,
+    ID_STAB
 };
 
 static const int cost_exp_modifiers[] = {70, 85, 100, 115, 130};
@@ -191,11 +192,22 @@ LRESULT CALLBACK Randomizer::WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM 
                 {
                     SET_CHECKED(rnd->cb_prefer_same_type_, false);
                     SET_CHECKED(rnd->cb_true_rand_skills_, false);
+                    SET_CHECKED(rnd->cb_stab_, false);
                 }
                 break;
             case ID_TRUE_RAND_SKILLS:
                 if(IS_CHECKED(rnd->cb_true_rand_skills_))
+                {
                     SET_CHECKED(rnd->cb_skills_, true);
+                    SET_CHECKED(rnd->cb_stab_, false);
+                }
+                break;
+            case ID_STAB:
+                if(IS_CHECKED(rnd->cb_stab_))
+                {
+                    SET_CHECKED(rnd->cb_skills_, true);
+                    SET_CHECKED(rnd->cb_true_rand_skills_, false);
+                }
                 break;
             default:
                 break;
@@ -742,7 +754,7 @@ bool Randomizer::randomize_puppets(Archive& archive)
                     for(auto it = skill_deck.begin(); it != skill_deck.end(); ++it)
                     {
                         auto e = skills_[*it].element;
-                        if((skills_[*it].type != SKILL_TYPE_STATUS) && (skills_[*it].power > 0) && ((e == style.element1) || (e == style.element2)))
+                        if((skills_[*it].type != SKILL_TYPE_STATUS) && (skills_[*it].power > 0) && (!rand_stab_ || (e == style.element1) || (e == style.element2)))
                         {
                             style.style_skills[0] = *it;
                             style.skillset.insert(*it);
@@ -1459,6 +1471,7 @@ void Randomizer::generate_seed()
 }
 
 /* raw winapi so we don't have any dependencies */
+/* FIXME: mistakes were made, raw winapi is an abomination */
 Randomizer::Randomizer(HINSTANCE hInstance)
 {
     hInstance_ = hInstance;
@@ -1526,6 +1539,7 @@ Randomizer::Randomizer(HINSTANCE hInstance)
     cb_true_rand_stats_ = CreateWindowW(L"Button", L"True random stats", CB_STYLE, x + (width / 3), y + 150, width_cb, 15, hwnd_, (HMENU)ID_TRUE_RAND_STATS, hInstance, NULL);
     cb_prefer_same_type_ = CreateWindowW(L"Button", L"Prefer same type", CB_STYLE, x + ((width / 3) * 2), y + 150, width_cb, 15, hwnd_, (HMENU)ID_PREFER_SAME, hInstance, NULL);
     cb_true_rand_skills_ = CreateWindowW(L"Button", L"True random skills", CB_STYLE, x, y + 180, width_cb, 15, hwnd_, (HMENU)ID_TRUE_RAND_SKILLS, hInstance, NULL);
+    cb_stab_ = CreateWindowW(L"Button", L"STAB starting move", CB_STYLE, x + (width / 3), y + 180, width_cb, 15, hwnd_, (HMENU)ID_STAB, hInstance, NULL);
 
     set_tooltip(cb_skills_, L"Randomize the skills each puppet can learn");
     set_tooltip(cb_stats_, L"Randomize puppet base stats");
@@ -1553,6 +1567,7 @@ Randomizer::Randomizer(HINSTANCE hInstance)
     set_tooltip(cb_prefer_same_type_, L"Randomization will favor skills that match a puppets typing");
     set_tooltip(cb_export_puppets_, L"Write puppet stats/skillsets/etc to puppets.txt in the game folder");
     set_tooltip(cb_true_rand_skills_, L"Any puppet can have any skill\r\nThe default behaviour preserves the \"move pools\" of puppets, meaning that normal puppets will generally have less powerful moves.\r\nThis option disables that.");
+    set_tooltip(cb_stab_, L"Puppets are guaranteed a damaging same-type starting move (so long as such a move exists in the pool)");
 
     NONCLIENTMETRICSW ncm = {0};
     ncm.cbSize = sizeof(ncm);
@@ -1590,8 +1605,9 @@ bool Randomizer::register_window_class(HINSTANCE hInstance)
 bool Randomizer::randomize()
 {
     Archive archive;
-    std::wstring filepath = get_window_text(wnd_dir_);
-    if(!path_exists(filepath))
+    std::wstring dir = get_window_text(wnd_dir_);
+    std::wstring path;
+    if(!path_exists(dir))
     {
         error(L"Invalid folder selected, please locate the game folder");
         return false;
@@ -1641,6 +1657,7 @@ bool Randomizer::randomize()
     rand_skill_sp_ = IS_CHECKED(cb_skill_sp_);
     rand_skill_prio_ = IS_CHECKED(cb_skill_prio_);
     rand_skill_type_ = IS_CHECKED(cb_skill_type_);
+    rand_stab_ = IS_CHECKED(cb_stab_);
     rand_skills_ = rand_skill_element_ || rand_skill_power_ || rand_skill_acc_ || rand_skill_sp_ || rand_skill_prio_ || rand_skill_type_;
 
     if(rand_quota_)
@@ -1659,9 +1676,15 @@ bool Randomizer::randomize()
         }
     }
 
-    if(!archive.open(filepath + L"/dat/gn_dat1.arc"))
+    path = dir + L"/dat/gn_dat1.arc";
+
+    try
     {
-        error(L"Failed to open gn_dat1.arc\nMake sure the specified folder is correct");
+        archive.open(path);
+    }
+    catch(const ArcError& ex)
+    {
+        error(L"failed to open file: " + path + L"\r\n" + utf_widen(ex.what()));
         return false;
     }
 
@@ -1677,12 +1700,15 @@ bool Randomizer::randomize()
         return false;
     }
 
-    if(!archive.open(filepath + (is_ynk_ ? L"/dat/gn_dat6.arc" : L"/dat/gn_dat3.arc")))
+    path = dir + (is_ynk_ ? L"/dat/gn_dat6.arc" : L"/dat/gn_dat3.arc");
+
+    try
     {
-        std::wstring msg(L"Failed to open ");
-        msg += (is_ynk_ ? L"gn_dat6.arc" : L"gn_dat3.arc");
-        msg += L"\nMake sure the specified folder is correct";
-        error(msg);
+        archive.open(path);
+    }
+    catch(const ArcError& ex)
+    {
+        error(L"failed to open file: " + path + L"\r\n" + utf_widen(ex.what()));
         return false;
     }
 
@@ -1713,16 +1739,21 @@ bool Randomizer::randomize()
 
     if(is_ynk_)
     {
-        std::wstring path = filepath + L"/dat/gn_dat6.arc";
         if(!archive.save(path))
         {
             error(std::wstring(L"Could not write to file: ") + path + L"\nPlease make sure you have write permission to the game folder.");
             return false;
         }
 
-        if(!archive.open(filepath + L"/dat/gn_dat5.arc"))
+        path = dir + L"/dat/gn_dat5.arc";
+
+        try
         {
-            error(L"Failed to open gn_dat5.arc\nMake sure the specified folder is correct");
+            archive.open(path);
+        }
+        catch(const ArcError& ex)
+        {
+            error(L"failed to open file: " + path + L"\r\n" + utf_widen(ex.what()));
             return false;
         }
     }
@@ -1738,7 +1769,6 @@ bool Randomizer::randomize()
     if(!randomize_wild_puppets(archive))
         return false;
 
-    std::wstring path = filepath + (is_ynk_ ? L"/dat/gn_dat5.arc" : L"/dat/gn_dat3.arc");
     if(!archive.save(path))
     {
         error(std::wstring(L"Could not write to file: ") + path + L"\nPlease make sure you have write permission to the game folder.");
@@ -1746,10 +1776,10 @@ bool Randomizer::randomize()
     }
 
     if(rand_export_locations_)
-        export_locations(filepath + L"/catch_locations.txt");
+        export_locations(dir + L"/catch_locations.txt");
 
     if(rand_export_puppets_)
-        export_puppets(filepath + L"/puppets.txt");
+        export_puppets(dir + L"/puppets.txt");
 
     return true;
 }
