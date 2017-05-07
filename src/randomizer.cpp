@@ -199,14 +199,14 @@ LRESULT CALLBACK Randomizer::WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM 
                 if(IS_CHECKED(rnd->cb_true_rand_skills_))
                 {
                     SET_CHECKED(rnd->cb_skills_, true);
-                    SET_CHECKED(rnd->cb_stab_, false);
+                    //SET_CHECKED(rnd->cb_stab_, false);
                 }
                 break;
             case ID_STAB:
                 if(IS_CHECKED(rnd->cb_stab_))
                 {
                     SET_CHECKED(rnd->cb_skills_, true);
-                    SET_CHECKED(rnd->cb_true_rand_skills_, false);
+                    //SET_CHECKED(rnd->cb_true_rand_skills_, false);
                 }
                 break;
             default:
@@ -373,6 +373,32 @@ void Randomizer::clear()
     held_item_ids_.clear();
     normal_stats_.clear();
     evolved_stats_.clear();
+}
+
+bool Randomizer::open_archive(Archive& arc, const std::wstring& path)
+{
+    try
+    {
+        arc.open(path);
+    }
+    catch(const ArcError& ex)
+    {
+        error(L"Failed to open file: " + path + L"\r\n" + utf_widen(ex.what()));
+        return false;
+    }
+
+    return true;
+}
+
+bool Randomizer::save_archive(Archive & arc, const std::wstring & path)
+{
+    if(!arc.save(path))
+    {
+        error(std::wstring(L"Could not write to file: ") + path + L"\r\nPlease make sure you have write permission to the game folder.");
+        return false;
+    }
+
+    return true;
 }
 
 bool Randomizer::read_puppets(Archive& archive)
@@ -748,7 +774,7 @@ bool Randomizer::randomize_puppets(Archive& archive)
                 std::shuffle(skill_deck.begin(), skill_deck.end(), gen_);
 
                 /* ensure every puppet starts with at least one damaging move */
-                if((style.style_type == STYLE_NORMAL) && !skill_deck.empty() && !rand_true_rand_skills_)
+                if((style.style_type == STYLE_NORMAL) && !skill_deck.empty() && (!rand_true_rand_skills_ || rand_stab_))
                 {
                     style.style_skills[0] = 56; /* default to yin energy if we don't find a match below */
                     for(auto it = skill_deck.begin(); it != skill_deck.end(); ++it)
@@ -764,7 +790,7 @@ bool Randomizer::randomize_puppets(Archive& archive)
                     }
                 }
 
-                for(int j = (((style.style_type == STYLE_NORMAL) && !rand_true_rand_skills_) ? 1 : 0); j < 11; ++j)
+                for(int j = (((style.style_type == STYLE_NORMAL) && (!rand_true_rand_skills_ || rand_stab_)) ? 1 : 0); j < 11; ++j)
                 {
                     auto& i(style.style_skills[j]);
                     if((i != 0) && !skill_deck.empty())
@@ -1607,6 +1633,13 @@ bool Randomizer::randomize()
     Archive archive;
     std::wstring dir = get_window_text(wnd_dir_);
     std::wstring path;
+
+    /* here we will store modified files until randomization is complete.
+     * this prevents leaving the game files partially randomized if we encounter
+     * an error mid-randomization.
+     * most of the files are < 10MB so this should be fine */
+    std::map<std::wstring, Archive> write_queue; // Key is filepath
+
     if(!path_exists(dir))
     {
         error(L"Invalid folder selected, please locate the game folder");
@@ -1678,15 +1711,8 @@ bool Randomizer::randomize()
 
     path = dir + L"/dat/gn_dat1.arc";
 
-    try
-    {
-        archive.open(path);
-    }
-    catch(const ArcError& ex)
-    {
-        error(L"failed to open file: " + path + L"\r\n" + utf_widen(ex.what()));
+    if(!open_archive(archive, path))
         return false;
-    }
 
     is_ynk_ = archive.is_ynk();
 
@@ -1702,15 +1728,8 @@ bool Randomizer::randomize()
 
     path = dir + (is_ynk_ ? L"/dat/gn_dat6.arc" : L"/dat/gn_dat3.arc");
 
-    try
-    {
-        archive.open(path);
-    }
-    catch(const ArcError& ex)
-    {
-        error(L"failed to open file: " + path + L"\r\n" + utf_widen(ex.what()));
+    if(!open_archive(archive, path))
         return false;
-    }
 
     if(!read_puppets(archive))
         return false;
@@ -1739,23 +1758,12 @@ bool Randomizer::randomize()
 
     if(is_ynk_)
     {
-        if(!archive.save(path))
-        {
-            error(std::wstring(L"Could not write to file: ") + path + L"\nPlease make sure you have write permission to the game folder.");
-            return false;
-        }
+        write_queue[path] = std::move(archive);
 
         path = dir + L"/dat/gn_dat5.arc";
 
-        try
-        {
-            archive.open(path);
-        }
-        catch(const ArcError& ex)
-        {
-            error(L"failed to open file: " + path + L"\r\n" + utf_widen(ex.what()));
+        if(!open_archive(archive, path))
             return false;
-        }
     }
 
     if(!parse_puppet_names(archive))
@@ -1769,10 +1777,13 @@ bool Randomizer::randomize()
     if(!randomize_wild_puppets(archive))
         return false;
 
-    if(!archive.save(path))
-    {
-        error(std::wstring(L"Could not write to file: ") + path + L"\nPlease make sure you have write permission to the game folder.");
+    if(!save_archive(archive, path))
         return false;
+
+    for(auto& it : write_queue)
+    {
+        if(!save_archive(it.second, it.first))
+            return false;
     }
 
     if(rand_export_locations_)

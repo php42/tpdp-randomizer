@@ -155,6 +155,9 @@ private:
 
     void clear();
 
+    bool open_archive(Archive& arc, const std::wstring& path);
+    bool save_archive(Archive& arc, const std::wstring& path);
+
 public:
 	Randomizer(HINSTANCE hInstance);
 

@@ -19,6 +19,7 @@
 #define TEXTCONVERT_H
 #include <string>
 
+/* conversions between shift-jis and unicode */
 std::wstring sjis_to_utf(const std::string& str);
 std::wstring sjis_to_utf(const char *begin, const char *end);
 std::string utf_to_sjis(const std::wstring& str);

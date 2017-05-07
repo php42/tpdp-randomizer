@@ -85,7 +85,7 @@ void Archive::decrypt()
         throw ArcError("Archive corrupt or unrecognized format.");
 
     if((read_le16(&data_[2]) ^ read_le16(&KEY[2])) > 5)
-        throw ArcError("Unsupported archive version.\r\nUse version 5 of the archive file format or yell at me to support newer versions.");
+        throw ArcError("Unsupported archive version.\r\nUse version 4 (or 5) of the archive file format or yell at me to support newer versions.");
 
 	if((read_le32(&data_[8]) ^ read_le32(&KEY[8])) == 0x1c)
 	{
@@ -183,6 +183,9 @@ void Archive::open(const std::wstring& filename)
 
 bool Archive::save(const std::string& filename)
 {
+    if(!data_)
+        return false;
+
     encrypt();
 
     bool ret = write_file(filename, data_.get(), data_used_);
@@ -195,6 +198,9 @@ bool Archive::save(const std::string& filename)
 
 bool Archive::save(const std::wstring& filename)
 {
+    if(!data_)
+        return false;
+
     encrypt();
 
     bool ret = write_file(filename, data_.get(), data_used_);

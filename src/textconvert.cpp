@@ -88,12 +88,12 @@ std::wstring utf_widen(const std::string& str)
     if(str.empty())
         return ret;
 
-    int len = MultiByteToWideChar(CP_UTF8, MB_PRECOMPOSED, str.c_str(), str.size(), NULL, 0);
+    int len = MultiByteToWideChar(CP_UTF8, 0, str.c_str(), str.size(), NULL, 0);
     if(!len)
         return ret;
 
     std::unique_ptr<wchar_t[]> buf(new wchar_t[len]);
-    if(!MultiByteToWideChar(CP_UTF8, MB_PRECOMPOSED, str.c_str(), str.size(), buf.get(), len))
+    if(!MultiByteToWideChar(CP_UTF8, 0, str.c_str(), str.size(), buf.get(), len))
         return ret;
 
     ret.assign(buf.get(), len);

@@ -146,6 +146,12 @@ public:
 	Archive() : header_(), data_used_(0), data_max_(0), is_ynk_(false) {};
     ~Archive() { close(); }
 
+    /* allow move semantics */
+    Archive(Archive&&) = default;
+    Archive& operator=(Archive&&) = default;
+
+    explicit operator bool() const { return (data_ != nullptr); }
+
     /* throws ArcError on failure */
 	void open(const std::string& filename);
 	void open(const std::wstring& filename);
@@ -176,7 +182,7 @@ public:
 
 	bool is_ynk() const {return is_ynk_;}
 
-    void close() { data_.reset(); }
+    void close() { data_.reset(); data_used_ = 0; data_max_ = 0; is_ynk_ = false; }
 };
 
 #endif // ARCHIVE_H
