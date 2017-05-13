@@ -23,6 +23,13 @@
 
 #define VERSION_STRING "v1.0.8"
 
+#define VERSION_MAJOR 1
+#define VERSION_MINOR 0
+#define VERSION_REVISION 8
+
+#define MAKE_VERSION(major, minor, revision) ((major << 16) | (minor << 8) | (revision))
+#define VERSION_INT MAKE_VERSION(VERSION_MAJOR, VERSION_MINOR, VERSION_REVISION)
+
 #include "gamedata.h"
 #include "archive.h"
 #include <string>
@@ -74,6 +81,11 @@ private:
     HWND tx_quota_;
     HWND cb_true_rand_skills_;
     HWND cb_stab_;
+    HWND grp_share_;
+    HWND bn_share_gen_;
+    HWND bn_share_load_;
+    HWND wnd_share_;
+    HWND cb_dmg_starting_move_;
 
     HFONT hfont_;
 
@@ -94,6 +106,7 @@ private:
     std::set<unsigned int> held_item_ids_;
     std::vector<unsigned int> normal_stats_;
     std::vector<unsigned int> evolved_stats_;
+    std::vector<HWND> checkboxes_;
     std::default_random_engine gen_;
     bool is_ynk_;
     bool rand_puppets_;
@@ -122,8 +135,9 @@ private:
     bool rand_export_puppets_;
     bool rand_true_rand_skills_;
     bool rand_stab_;
-    int level_mod_;
-    int stat_quota_;
+    bool rand_dmg_starting_move_;
+    unsigned int level_mod_;
+    unsigned int stat_quota_;
 
     bool read_puppets(Archive& archive);
     bool parse_items(Archive& archive);
@@ -139,6 +153,12 @@ private:
     bool parse_puppet_names(Archive& archive);
 
     void generate_seed();
+
+    void generate_share_code();
+    bool load_share_code();
+
+    void sanity_check();
+    bool check_numeric_window(HWND hwnd, const std::wstring& name);
 
     void decrypt_puppet(void *src, const void *rand_data, std::size_t len);
     void encrypt_puppet(void *src, const void *rand_data, std::size_t len);

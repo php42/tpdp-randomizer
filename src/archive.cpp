@@ -30,6 +30,8 @@ static const uint8_t KEY_YNK[] = {0x9B, 0x16, 0xFE, 0x3A, 0x98, 0xC2, 0xA0, 0x73
  * is a lot of weird offset arithmetic going on in here.
  * it's a complete mess right now that could certainly be handled better */
 
+/* these could be made into packed structs and type-punned,
+ * but my obsession with portability and strict aliasing prohibits this */
 void ArchiveHeader::read(const void *data)
 {
 	const char *buf = (const char*)data;
@@ -86,6 +88,9 @@ void Archive::decrypt()
 
     if((read_le16(&data_[2]) ^ read_le16(&KEY[2])) > 5)
         throw ArcError("Unsupported archive version.\r\nUse version 4 (or 5) of the archive file format or yell at me to support newer versions.");
+
+    if((read_le16(&data_[2]) ^ read_le16(&KEY[2])) < 4)
+        throw ArcError("Unsupported archive version.\r\nUse version 4 (or 5) of the archive file format.");
 
 	if((read_le32(&data_[8]) ^ read_le32(&KEY[8])) == 0x1c)
 	{

@@ -187,16 +187,24 @@ bool ItemData::parse(const CSVEntry& data, bool ynk)
     if(data[0].empty() || !iswdigit(data[0][0]))
         return false;
 
-    id = std::stoi(data[0]);
-    name = data[1];
-    price = std::stoi(data[2]);
-    type = std::stoi(data[3]);	/* 255 = unimplemented (id 0 "nothing" also uses this value) */
-    combat = (std::stoi(data[4]) != 0);
-    common = (std::stoi(data[5]) != 0);
-    can_discard = (std::stoi(data[6]) != 0);
-    held = (std::stoi(data[7]) != 0);
-    reincarnation = (std::stoi(data[8]) != 0);
-    skill_id = std::stoi(data[9]);
+    try
+    {
+        id = std::stoi(data[0]);
+        name = data[1];
+        price = std::stoi(data[2]);
+        type = std::stoi(data[3]);	/* 255 = unimplemented (id 0 "nothing" also uses this value) */
+        combat = (std::stoi(data[4]) != 0);
+        common = (std::stoi(data[5]) != 0);
+        can_discard = (std::stoi(data[6]) != 0);
+        held = (std::stoi(data[7]) != 0);
+        reincarnation = (std::stoi(data[8]) != 0);
+        skill_id = std::stoi(data[9]);
+    }
+    catch(const std::exception&)
+    {
+        return false;
+    }
+
     if(!ynk)
         description = data[10];
     else
