@@ -127,6 +127,8 @@ public:
 
 	void read(const void *data);
     void write(void *data);
+
+    int level_to_learn(unsigned int style_index, unsigned int skill_id) const;  /* level required to learn a skill, returns -1 if puppet cannot learn the skill by levelling */
 };
 
 /* base data for items */

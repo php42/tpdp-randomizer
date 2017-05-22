@@ -86,6 +86,16 @@ enum
 
 static const int cost_exp_modifiers[] = {70, 85, 100, 115, 130};
 static const int cost_exp_modifiers_ynk[] = {85, 92, 100, 107, 115};
+const unsigned int sign_skills[] = {127, 179, 233, 273, 327, 375, 421, 474, 524, 566, 623, 680, 741, 782, 817};
+
+inline bool is_sign_skill(unsigned int id)
+{
+    for(auto i : sign_skills)
+        if(id == i)
+            return true;
+
+    return false;
+}
 
 template<typename T> void subtract_set(std::vector<T>& vec, std::set<T>& s)
 {
@@ -1140,7 +1150,8 @@ void Randomizer::randomize_dod_file(void *src, const void *rand_data)
     std::uniform_int_distribution<int> ev(0, 64);
     std::uniform_int_distribution<int> pick_ev(0, 5);
     std::uniform_int_distribution<int> id(0, valid_puppet_ids_.size() - 1);
-    std::bernoulli_distribution chance25(0.25);
+    std::bernoulli_distribution item_chance(0.25);
+    std::bernoulli_distribution skillcard_chance(0.15);
     std::bernoulli_distribution coin_flip(0.5);
 
     std::shuffle(item_ids.begin(), item_ids.end(), gen_);
@@ -1153,7 +1164,11 @@ void Randomizer::randomize_dod_file(void *src, const void *rand_data)
 
         Puppet puppet(pos, false);
         unsigned int lvl = level_from_exp(puppets_[puppet.puppet_id], puppet.exp);
-        lvl = (unsigned int)(double(lvl) * lvl_mul);
+        assert(level_from_exp(puppets_[puppet.puppet_id], exp_for_level(puppets_[puppet.puppet_id], lvl)) == lvl); //sanity check
+        /*auto exp = exp_for_level(puppets_[puppet.puppet_id], lvl);
+        assert(exp == puppet.exp);*/
+        if(level_mod_ != 100)
+            lvl = (unsigned int)(double(lvl) * lvl_mul);
         if(lvl > 100)
             lvl = 100;
         if(lvl > max_lvl)
@@ -1165,8 +1180,9 @@ void Randomizer::randomize_dod_file(void *src, const void *rand_data)
         if(((puppet.puppet_id == 0) && rand_full_party_) || ((puppet.puppet_id != 0) && rand_trainers_))
         {
             PuppetData& data(puppets_[valid_puppet_ids_[id(gen_)]]);
+            puppet.puppet_id = data.id;
 
-            if(lvl >= 30)
+            if(lvl >= 32)
             {
                 int max_index = 0;
                 for(int j = 0; j < 4; ++j)
@@ -1185,23 +1201,82 @@ void Randomizer::randomize_dod_file(void *src, const void *rand_data)
             const StyleData& style(data.styles[puppet.style_index]);
 
             std::vector<unsigned int> skills(style.skillset.begin(), style.skillset.end());
+            std::vector<unsigned int> skillcards;
+
+            /* remove skills that are too high level for the current puppet */
+            auto iter = skills.begin();
+            while(iter != skills.end())
+            {
+                auto required_lvl = data.level_to_learn(puppet.style_index, *iter);
+                assert(required_lvl >= 0);
+                if((unsigned int)required_lvl > lvl)
+                    iter = skills.erase(iter);
+                else
+                    ++iter;
+            }
 
             for(unsigned int i = 0; i < 16; ++i)
             {
                 for(unsigned int j = 0; j < 8; ++j)
                 {
                     if(style.skill_compat_table[i] & (1 << j))
-                        skills.push_back(items_[385 + (8 * i) + j].skill_id);
+                        skillcards.push_back(items_[385 + (8 * i) + j].skill_id);
                 }
             }
 
             std::shuffle(skills.begin(), skills.end(), gen_);
+            std::shuffle(skillcards.begin(), skillcards.end(), gen_);
 
-            puppet.puppet_id = data.id;
-
-            int skill_index = 0;
+            bool has_sign_skill = false;
             for(auto& i : puppet.skills)
-                i = skills[skill_index++];
+            {
+                if(!skillcards.empty() && skillcard_chance(gen_))
+                {
+                    while(!skillcards.empty() && is_sign_skill(skillcards.back()))
+                    {
+                        if(!has_sign_skill)
+                        {
+                            has_sign_skill = true;
+                            break;
+                        }
+
+                        skillcards.pop_back();
+                    }
+
+                    if(!skillcards.empty())
+                    {
+                        i = skillcards.back();
+                        skillcards.pop_back();
+                    }
+                    else
+                    {
+                        i = 0;
+                    }
+                }
+                else
+                {
+                    while(!skills.empty() && is_sign_skill(skills.back())) /* this shouldn't actually happen? just in case. */
+                    {
+                        if(!has_sign_skill)
+                        {
+                            has_sign_skill = true;
+                            break;
+                        }
+
+                        skills.pop_back();
+                    }
+
+                    if(!skills.empty())
+                    {
+                        i = skills.back();
+                        skills.pop_back();
+                    }
+                    else
+                    {
+                        i = 0;
+                    }
+                }
+            }
 
             for(auto& i : puppet.ivs)
                 i = iv(gen_);
@@ -1227,7 +1302,7 @@ void Randomizer::randomize_dod_file(void *src, const void *rand_data)
                     puppet.ability_index = 0;
             }
 
-            if(!item_ids.empty() && chance25(gen_))
+            if(!item_ids.empty() && item_chance(gen_))
             {
                 puppet.held_item_id = item_ids.back();
                 item_ids.pop_back();
@@ -1240,8 +1315,11 @@ void Randomizer::randomize_dod_file(void *src, const void *rand_data)
         }
 
         if(puppet.puppet_id)
+        {
             puppet.exp = exp_for_level(puppets_[puppet.puppet_id], lvl);
-        puppet.write(pos, false);
+            assert(level_from_exp(puppets_[puppet.puppet_id], puppet.exp) == lvl); //sanity check
+            puppet.write(pos, false);
+        }
 
         encrypt_puppet(pos, rand_data, PUPPET_SIZE);
     }
@@ -1479,7 +1557,7 @@ void Randomizer::randomize_mad_file(void *data)
         if(newlvl > 100)
             newlvl = 100;
         lvls[i] = (char)newlvl;
-        if(lvls[i] < 30)
+        if(lvls[i] < 32)
             style_table[i] = 0;
 
         if(rand_export_locations_ && puppet_table[i] && !loc_name.empty())
@@ -1497,7 +1575,7 @@ void Randomizer::randomize_mad_file(void *data)
         if(newlvl > 100)
             newlvl = 100;
         lvls[i] = (char)newlvl;
-        if(lvls[i] < 30)
+        if(lvls[i] < 32)
             style_table[i] = 0;
 
         if(rand_export_locations_ && puppet_table[i] && !loc_name.empty())
@@ -2251,7 +2329,7 @@ unsigned int Randomizer::exp_for_level(const PuppetData& data, unsigned int leve
     if(is_ynk_)
         mods = cost_exp_modifiers_ynk;
 
-    unsigned int ret = level * level * level * mods[data.cost] / 100;
+    unsigned int ret = level * level * level * (unsigned int)mods[data.cost] / 100u;
 
     return ret;
 }
