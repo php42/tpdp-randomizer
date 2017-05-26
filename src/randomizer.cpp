@@ -1150,8 +1150,6 @@ void Randomizer::randomize_dod_file(void *src, const void *rand_data)
     std::uniform_int_distribution<int> ev(0, 64);
     std::uniform_int_distribution<int> pick_ev(0, 5);
     std::uniform_int_distribution<int> id(0, valid_puppet_ids_.size() - 1);
-    std::bernoulli_distribution item_chance(0.25);
-    std::bernoulli_distribution skillcard_chance(0.15);
     std::bernoulli_distribution coin_flip(0.5);
 
     std::shuffle(item_ids.begin(), item_ids.end(), gen_);
@@ -1164,9 +1162,6 @@ void Randomizer::randomize_dod_file(void *src, const void *rand_data)
 
         Puppet puppet(pos, false);
         unsigned int lvl = level_from_exp(puppets_[puppet.puppet_id], puppet.exp);
-        assert(level_from_exp(puppets_[puppet.puppet_id], exp_for_level(puppets_[puppet.puppet_id], lvl)) == lvl); //sanity check
-        /*auto exp = exp_for_level(puppets_[puppet.puppet_id], lvl);
-        assert(exp == puppet.exp);*/
         if(level_mod_ != 100)
             lvl = (unsigned int)(double(lvl) * lvl_mul);
         if(lvl > 100)
@@ -1174,7 +1169,7 @@ void Randomizer::randomize_dod_file(void *src, const void *rand_data)
         if(lvl > max_lvl)
             max_lvl = lvl;
 
-        if(puppet.exp == 0)
+        if((puppet.exp == 0) || (puppet.puppet_id == 0))
             lvl = max_lvl;
 
         if(((puppet.puppet_id == 0) && rand_full_party_) || ((puppet.puppet_id != 0) && rand_trainers_))
@@ -1182,7 +1177,9 @@ void Randomizer::randomize_dod_file(void *src, const void *rand_data)
             PuppetData& data(puppets_[valid_puppet_ids_[id(gen_)]]);
             puppet.puppet_id = data.id;
 
-            if(lvl >= 32)
+            std::bernoulli_distribution item_chance((double)lvl / 150.0);
+
+            if(lvl >= 30)
             {
                 int max_index = 0;
                 for(int j = 0; j < 4; ++j)
@@ -1220,12 +1217,20 @@ void Randomizer::randomize_dod_file(void *src, const void *rand_data)
                 for(unsigned int j = 0; j < 8; ++j)
                 {
                     if(style.skill_compat_table[i] & (1 << j))
-                        skillcards.push_back(items_[385 + (8 * i) + j].skill_id);
+                    {
+                        if(lvl < 30)
+                            skillcards.push_back(items_[385 + (8 * i) + j].skill_id);
+                        else
+                            skills.push_back(items_[385 + (8 * i) + j].skill_id);
+                    }
                 }
             }
 
             std::shuffle(skills.begin(), skills.end(), gen_);
-            std::shuffle(skillcards.begin(), skillcards.end(), gen_);
+            if(!skillcards.empty())
+                std::shuffle(skillcards.begin(), skillcards.end(), gen_);
+
+            std::bernoulli_distribution skillcard_chance((lvl < 30) ? ((double)lvl / 70.0) : 0.5);
 
             bool has_sign_skill = false;
             for(auto& i : puppet.skills)
@@ -1255,7 +1260,7 @@ void Randomizer::randomize_dod_file(void *src, const void *rand_data)
                 }
                 else
                 {
-                    while(!skills.empty() && is_sign_skill(skills.back())) /* this shouldn't actually happen? just in case. */
+                    while(!skills.empty() && is_sign_skill(skills.back()))
                     {
                         if(!has_sign_skill)
                         {
@@ -1317,7 +1322,7 @@ void Randomizer::randomize_dod_file(void *src, const void *rand_data)
         if(puppet.puppet_id)
         {
             puppet.exp = exp_for_level(puppets_[puppet.puppet_id], lvl);
-            assert(level_from_exp(puppets_[puppet.puppet_id], puppet.exp) == lvl); //sanity check
+            assert(((lvl < 30) && (puppet.style_index == 0)) || (lvl >= 30));
             puppet.write(pos, false);
         }
 
@@ -1960,26 +1965,26 @@ Randomizer::Randomizer(HINSTANCE hInstance)
     SendMessageW(progress_bar_, PBM_SETSTEP, 1, 0);
 
     GetClientRect(grp_dir_, &rect);
-    wnd_dir_ = CreateWindowExW(WS_EX_CLIENTEDGE, L"Edit", L"C:\\game\\FocasLens\\幻想人形演舞", WS_CHILD | WS_VISIBLE, 20, 30, rect.right - 90, 25, hwnd_, NULL, hInstance, NULL);
+    wnd_dir_ = CreateWindowExW(WS_EX_CLIENTEDGE, L"Edit", L"C:\\game\\FocasLens\\幻想人形演舞", WS_CHILD | WS_VISIBLE | ES_AUTOHSCROLL, 20, 30, rect.right - 90, 25, hwnd_, NULL, hInstance, NULL);
     bn_browse_ = CreateWindowW(L"Button", L"Browse", WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON, rect.right - 65, 28, 65, 29, hwnd_, (HMENU)ID_BROWSE, hInstance, NULL);
 
     GetClientRect(grp_other_, &rect);
-    wnd_lvladjust_ = CreateWindowExW(WS_EX_CLIENTEDGE, L"Edit", L"100", WS_CHILD | WS_VISIBLE | ES_NUMBER, 20, 350, 50, 23, hwnd_, NULL, hInstance, NULL);
+    wnd_lvladjust_ = CreateWindowExW(WS_EX_CLIENTEDGE, L"Edit", L"100", WS_CHILD | WS_VISIBLE | ES_NUMBER | ES_AUTOHSCROLL, 20, 350, 50, 23, hwnd_, NULL, hInstance, NULL);
     tx_lvladjust_ = CreateWindowW(L"Static", L"% enemy level adjustment", WS_CHILD | WS_VISIBLE | SS_WORDELLIPSIS, 75, 352, (rect.right / 2) - 75, 23, hwnd_, NULL, hInstance, NULL);
     cb_trainer_party_ = CreateWindowW(L"Button", L"Full trainer party", CB_STYLE, (rect.right / 2) + 20, 353, (rect.right / 2) - 25, 15, hwnd_, NULL, hInstance, NULL);
     cb_export_locations_ = CreateWindowW(L"Button", L"Export catch locations", CB_STYLE, 20, 385, (rect.right / 2) - 25, 15, hwnd_, NULL, hInstance, NULL);
-    wnd_quota_ = CreateWindowExW(WS_EX_CLIENTEDGE, L"Edit", L"500", WS_CHILD | WS_VISIBLE | ES_NUMBER | WS_DISABLED, (rect.right / 2) + 20, 383, 50, 23, hwnd_, NULL, hInstance, NULL);
+    wnd_quota_ = CreateWindowExW(WS_EX_CLIENTEDGE, L"Edit", L"500", WS_CHILD | WS_VISIBLE | ES_NUMBER | WS_DISABLED | ES_AUTOHSCROLL, (rect.right / 2) + 20, 383, 50, 23, hwnd_, NULL, hInstance, NULL);
     tx_lvladjust_ = CreateWindowW(L"Static", L"Stat quota", WS_CHILD | WS_VISIBLE | SS_WORDELLIPSIS, (rect.right / 2) + 75, 385, (rect.right / 2) - 75, 23, hwnd_, NULL, hInstance, NULL);
     cb_healthy_ = CreateWindowW(L"Button", L"Healthy", CB_STYLE, 20, 415, (rect.right / 2) - 25, 15, hwnd_, (HMENU)ID_HEALTHY, hInstance, NULL);
     cb_export_puppets_ = CreateWindowW(L"Button", L"Dump puppet stats", CB_STYLE, (rect.right / 2) + 20, 415, (rect.right / 2) - 25, 15, hwnd_, NULL, hInstance, NULL);
 
     GetClientRect(grp_seed_, &rect);
-    wnd_seed_ = CreateWindowExW(WS_EX_CLIENTEDGE, L"Edit", L"0", WS_CHILD | WS_VISIBLE | ES_NUMBER, 20, 475, rect.right - 125, 25, hwnd_, NULL, hInstance, NULL);
+    wnd_seed_ = CreateWindowExW(WS_EX_CLIENTEDGE, L"Edit", L"0", WS_CHILD | WS_VISIBLE | ES_NUMBER | ES_AUTOHSCROLL, 20, 475, rect.right - 125, 25, hwnd_, NULL, hInstance, NULL);
     bn_generate_ = CreateWindowW(L"Button", L"Generate", WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON, rect.right - 100, 473, 100, 29, hwnd_, (HMENU)ID_GENERATE, hInstance, NULL);
     generate_seed();
 
     GetClientRect(grp_share_, &rect);
-    wnd_share_ = CreateWindowExW(WS_EX_CLIENTEDGE, L"Edit", L"", WS_CHILD | WS_VISIBLE, 20, 540, rect.right - 195, 25, hwnd_, NULL, hInstance, NULL);
+    wnd_share_ = CreateWindowExW(WS_EX_CLIENTEDGE, L"Edit", L"", WS_CHILD | WS_VISIBLE | ES_AUTOHSCROLL, 20, 540, rect.right - 195, 25, hwnd_, NULL, hInstance, NULL);
     bn_share_gen_ = CreateWindowW(L"Button", L"Generate", WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON, rect.right - 165, 538, 80, 29, hwnd_, (HMENU)ID_SHARE_GEN, hInstance, NULL);
     bn_share_load_ = CreateWindowW(L"Button", L"Load", WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON, rect.right - 80, 538, 80, 29, hwnd_, (HMENU)ID_SHARE_LOAD, hInstance, NULL);
 

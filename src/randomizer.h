@@ -21,11 +21,11 @@
 #define WIN32_LEAN_AND_MEAN
 #include <Windows.h>
 
-#define VERSION_STRING "v1.0.9"
+#define VERSION_STRING "v1.0.10"
 
 #define VERSION_MAJOR 1
 #define VERSION_MINOR 0
-#define VERSION_REVISION 9
+#define VERSION_REVISION 10
 
 #define MAKE_VERSION(major, minor, revision) ((major << 16) | (minor << 8) | (revision))
 #define VERSION_INT MAKE_VERSION(VERSION_MAJOR, VERSION_MINOR, VERSION_REVISION)
