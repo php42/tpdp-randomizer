@@ -1150,6 +1150,7 @@ void Randomizer::randomize_dod_file(void *src, const void *rand_data)
     std::uniform_int_distribution<int> ev(0, 64);
     std::uniform_int_distribution<int> pick_ev(0, 5);
     std::uniform_int_distribution<int> id(0, valid_puppet_ids_.size() - 1);
+    std::bernoulli_distribution item_chance(0.25);
     std::bernoulli_distribution coin_flip(0.5);
 
     std::shuffle(item_ids.begin(), item_ids.end(), gen_);
@@ -1177,7 +1178,7 @@ void Randomizer::randomize_dod_file(void *src, const void *rand_data)
             PuppetData& data(puppets_[valid_puppet_ids_[id(gen_)]]);
             puppet.puppet_id = data.id;
 
-            std::bernoulli_distribution item_chance((double)lvl / 150.0);
+            //std::bernoulli_distribution item_chance(sqrt((double)lvl) / 16.0);
 
             if(lvl >= 30)
             {
@@ -1198,10 +1199,10 @@ void Randomizer::randomize_dod_file(void *src, const void *rand_data)
             const StyleData& style(data.styles[puppet.style_index]);
 
             std::vector<unsigned int> skills(style.skillset.begin(), style.skillset.end());
-            std::vector<unsigned int> skillcards;
+            //std::vector<unsigned int> skillcards;
 
             /* remove skills that are too high level for the current puppet */
-            auto iter = skills.begin();
+            /*auto iter = skills.begin();
             while(iter != skills.end())
             {
                 auto required_lvl = data.level_to_learn(puppet.style_index, *iter);
@@ -1210,7 +1211,7 @@ void Randomizer::randomize_dod_file(void *src, const void *rand_data)
                     iter = skills.erase(iter);
                 else
                     ++iter;
-            }
+            }*/
 
             for(unsigned int i = 0; i < 16; ++i)
             {
@@ -1218,24 +1219,21 @@ void Randomizer::randomize_dod_file(void *src, const void *rand_data)
                 {
                     if(style.skill_compat_table[i] & (1 << j))
                     {
-                        if(lvl < 30)
-                            skillcards.push_back(items_[385 + (8 * i) + j].skill_id);
-                        else
-                            skills.push_back(items_[385 + (8 * i) + j].skill_id);
+                        skills.push_back(items_[385 + (8 * i) + j].skill_id);
                     }
                 }
             }
 
             std::shuffle(skills.begin(), skills.end(), gen_);
-            if(!skillcards.empty())
-                std::shuffle(skillcards.begin(), skillcards.end(), gen_);
+            /*if(!skillcards.empty())
+                std::shuffle(skillcards.begin(), skillcards.end(), gen_);*/
 
-            std::bernoulli_distribution skillcard_chance((lvl < 30) ? ((double)lvl / 70.0) : 0.5);
+            //std::bernoulli_distribution skillcard_chance((sqrt((double)lvl) / 11.0) + 0.05);
 
             bool has_sign_skill = false;
             for(auto& i : puppet.skills)
             {
-                if(!skillcards.empty() && skillcard_chance(gen_))
+                /*if(!skillcards.empty() && skillcard_chance(gen_))
                 {
                     while(!skillcards.empty() && is_sign_skill(skillcards.back()))
                     {
@@ -1259,7 +1257,7 @@ void Randomizer::randomize_dod_file(void *src, const void *rand_data)
                     }
                 }
                 else
-                {
+                {*/
                     while(!skills.empty() && is_sign_skill(skills.back()))
                     {
                         if(!has_sign_skill)
@@ -1280,7 +1278,7 @@ void Randomizer::randomize_dod_file(void *src, const void *rand_data)
                     {
                         i = 0;
                     }
-                }
+                //}
             }
 
             for(auto& i : puppet.ivs)
