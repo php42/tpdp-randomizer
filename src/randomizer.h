@@ -21,11 +21,11 @@
 #define WIN32_LEAN_AND_MEAN
 #include <Windows.h>
 
-#define VERSION_STRING "v1.0.10"
+#define VERSION_STRING "v1.0.11"
 
 #define VERSION_MAJOR 1
 #define VERSION_MINOR 0
-#define VERSION_REVISION 10
+#define VERSION_REVISION 11
 
 #define MAKE_VERSION(major, minor, revision) ((major << 16) | (minor << 8) | (revision))
 #define VERSION_INT MAKE_VERSION(VERSION_MAJOR, VERSION_MINOR, VERSION_REVISION)
@@ -86,6 +86,14 @@ private:
     HWND bn_share_load_;
     HWND wnd_share_;
     HWND cb_dmg_starting_move_;
+    HWND cb_proportional_stats_;
+    HWND cb_strict_trainers_;
+    HWND wnd_sc_chance_;
+    HWND tx_sc_chance_;
+    HWND wnd_item_chance_;
+    HWND tx_item_chance_;
+    HWND wnd_stat_ratio_;
+    HWND tx_stat_ratio_;
 
     HFONT hfont_;
 
@@ -136,8 +144,14 @@ private:
     bool rand_true_rand_skills_;
     bool rand_stab_;
     bool rand_dmg_starting_move_;
+    bool rand_stat_scaling_;
+    bool rand_strict_trainers_;
+    bool rand_trainer_sc_shuffle_;
     unsigned int level_mod_;
     unsigned int stat_quota_;
+    unsigned int trainer_sc_chance_;
+    unsigned int trainer_item_chance_;
+    unsigned int stat_ratio_;
 
     bool read_puppets(Archive& archive);
     bool parse_items(Archive& archive);
@@ -157,8 +171,8 @@ private:
     void generate_share_code();
     bool load_share_code();
 
-    void sanity_check();
-    bool check_numeric_window(HWND hwnd, const std::wstring& name);
+    bool validate();
+    bool validate_uint_window(HWND hwnd, const std::wstring& name);
 
     void decrypt_puppet(void *src, const void *rand_data, std::size_t len);
     void encrypt_puppet(void *src, const void *rand_data, std::size_t len);
@@ -178,15 +192,25 @@ private:
     bool open_archive(Archive& arc, const std::wstring& path);
     bool save_archive(Archive& arc, const std::wstring& path);
 
+    void set_progress_bar(int percent);
+    void increment_progress_bar(); /* increase progress bar by 1% */
+
+    void get_child_rect(HWND hwnd, RECT& rect);
+    int get_child_x(HWND hwnd);
+    int get_child_y(HWND hwnd);
+    int get_child_bottom(HWND hwnd);
+    int get_child_right(HWND hwnd);
+
+    static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
+
+    bool randomize();
+
 public:
 	Randomizer(HINSTANCE hInstance);
 
 	~Randomizer();
 
     static bool register_window_class(HINSTANCE hInstance);
-    static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
-
-    bool randomize();
 };
 
 #endif // RANDOMIZER_H

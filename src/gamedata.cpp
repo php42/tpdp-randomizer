@@ -20,10 +20,10 @@
 #include "util.h"
 #include "textconvert.h"
 #include <cassert>
-/*
+
 static const unsigned int style_levels[] = {0, 0, 0, 0, 30, 36, 42, 49, 56, 63, 70};
 static const unsigned int base_levels[] = {7, 10, 14, 19, 24};
-*/
+
 void SkillData::read(const void *data)
 {
 	const uint8_t *buf = (const uint8_t*)data;
@@ -179,7 +179,7 @@ void PuppetData::write(void *data)
     for(int i = 0; i < 4; ++i)
         styles[i].write(&buf[93 + (i * STYLE_DATA_SIZE)]);
 }
-/*
+
 int PuppetData::level_to_learn(unsigned int style_index, unsigned int skill_id) const
 {
     if(skill_id == 0)
@@ -215,7 +215,7 @@ int PuppetData::level_to_learn(unsigned int style_index, unsigned int skill_id) 
 
     return -1;
 }
-*/
+
 bool ItemData::parse(const CSVEntry& data, bool ynk)
 {
     if((!ynk) && (data.size() != 11))
