@@ -362,3 +362,43 @@ std::wstring element_string(int element)
         return L"Unknown";
     }
 }
+
+void MADData::read(const void *data)
+{
+    const char *buf = (const char*)data;
+
+    /* area name */
+    memcpy(location_name, &buf[0x59], sizeof(location_name));
+
+    /* normal grass */
+    memcpy(puppet_ids, &buf[0x0E], sizeof(puppet_ids));
+    memcpy(puppet_levels, &buf[0x22], sizeof(puppet_levels));
+    memcpy(puppet_styles, &buf[0x2c], sizeof(puppet_styles));
+    memcpy(puppet_ratios, &buf[0x36], sizeof(puppet_ratios));
+
+    /* blue grass */
+    memcpy(special_puppet_ids, &buf[0x40], sizeof(special_puppet_ids));
+    memcpy(special_puppet_levels, &buf[0x4a], sizeof(special_puppet_levels));
+    memcpy(special_puppet_styles, &buf[0x4f], sizeof(special_puppet_styles));
+    memcpy(special_puppet_ratios, &buf[0x54], sizeof(special_puppet_ratios));
+}
+
+void MADData::write(void *data)
+{
+    char *buf = (char*)data;
+
+    /* area name */
+    memcpy(&buf[0x59], location_name, sizeof(location_name));
+
+    /* normal grass */
+    memcpy(&buf[0x0E], puppet_ids, sizeof(puppet_ids));
+    memcpy(&buf[0x22], puppet_levels, sizeof(puppet_levels));
+    memcpy(&buf[0x2c], puppet_styles, sizeof(puppet_styles));
+    memcpy(&buf[0x36], puppet_ratios, sizeof(puppet_ratios));
+
+    /* blue grass */
+    memcpy(&buf[0x40], special_puppet_ids, sizeof(special_puppet_ids));
+    memcpy(&buf[0x4a], special_puppet_levels, sizeof(special_puppet_levels));
+    memcpy(&buf[0x4f], special_puppet_styles, sizeof(special_puppet_styles));
+    memcpy(&buf[0x54], special_puppet_ratios, sizeof(special_puppet_ratios));
+}

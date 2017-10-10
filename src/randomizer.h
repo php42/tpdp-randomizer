@@ -21,11 +21,11 @@
 #define WIN32_LEAN_AND_MEAN
 #include <Windows.h>
 
-#define VERSION_STRING "v1.0.11"
+#define VERSION_STRING "v1.0.12 BETA"
 
-#define VERSION_MAJOR 1
+#define VERSION_MAJOR 0
 #define VERSION_MINOR 0
-#define VERSION_REVISION 11
+#define VERSION_REVISION 0
 
 #define MAKE_VERSION(major, minor, revision) ((major << 16) | (minor << 8) | (revision))
 #define VERSION_INT MAKE_VERSION(VERSION_MAJOR, VERSION_MINOR, VERSION_REVISION)
@@ -68,8 +68,8 @@ private:
     HWND tx_lvladjust_;
     HWND wnd_lvladjust_;
     HWND cb_trainer_party_;
-    HWND cb_wild_puppets_;
-    HWND cb_wild_style_;
+    HWND cb_encounters_;
+    HWND cb_encounter_rate_;
     HWND cb_export_locations_;
     HWND cb_use_quota_;
     HWND cb_healthy_;
@@ -94,6 +94,7 @@ private:
     HWND tx_item_chance_;
     HWND wnd_stat_ratio_;
     HWND tx_stat_ratio_;
+    HWND cb_cost_;
 
     HFONT hfont_;
 
@@ -114,8 +115,13 @@ private:
     std::set<unsigned int> held_item_ids_;
     std::vector<unsigned int> normal_stats_;
     std::vector<unsigned int> evolved_stats_;
+    std::map<unsigned int, unsigned int> old_costs_;
+    std::multiset<std::wstring> location_names_;
+
     std::vector<HWND> checkboxes_;
+    std::vector<HWND> checkboxes_3state_;
     std::default_random_engine gen_;
+
     bool is_ynk_;
     bool rand_puppets_;
     bool rand_skillsets_;
@@ -132,8 +138,8 @@ private:
     bool rand_skill_prio_;
     bool rand_skill_type_;
     bool rand_full_party_;
-    bool rand_wild_puppets_;
-    bool rand_wild_style_;
+    //bool rand_wild_puppets_;
+    //bool rand_wild_style_;
     bool rand_export_locations_;
     bool rand_quota_;
     bool rand_healthy_;
@@ -147,11 +153,14 @@ private:
     bool rand_stat_scaling_;
     bool rand_strict_trainers_;
     bool rand_trainer_sc_shuffle_;
+    bool rand_encounter_rate_;
     unsigned int level_mod_;
     unsigned int stat_quota_;
     unsigned int trainer_sc_chance_;
     unsigned int trainer_item_chance_;
     unsigned int stat_ratio_;
+    unsigned int rand_cost_;
+    unsigned int rand_encounters_;
 
     bool read_puppets(Archive& archive);
     bool parse_items(Archive& archive);
@@ -178,7 +187,9 @@ private:
     void encrypt_puppet(void *src, const void *rand_data, std::size_t len);
 
     unsigned int level_from_exp(const PuppetData& data, unsigned int exp) const;
+    unsigned int level_from_exp(unsigned int cost, unsigned int exp) const;
     unsigned int exp_for_level(const PuppetData& data, unsigned int level) const;
+    unsigned int exp_for_level(unsigned int cost, unsigned int level) const;
 
     void error(const std::wstring& msg);
 

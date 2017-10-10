@@ -136,9 +136,9 @@ class ItemData
 {
 public:
     std::wstring name, description;	/* description may contain escape sequences like "\n" */
-    int id, type, price;			/* type = junk, consumable, etc. type 255 = nothing/unimplemented (id 0 is nothing, anything else is unimplemented) */
-    bool combat;					/* can be used in battle */
-    bool common;					/* item is considered to be common */
+    int id, type, price;			/* type = junk, consumable, etc. type 255 = unimplemented (id 0 (nothing) also uses type 255) */
+    bool combat;					/* can be used in battle (healing items etc.) */
+    bool common;					/* item is considered to be common (?) */
     bool can_discard;				/* player is able to discard this item from their inventory */
     bool held;						/* this item can be held by puppets */
     bool reincarnation;				/* this item is used for reincarnation */
@@ -151,6 +151,33 @@ public:
 
     /* returns true if item is valid and usable in-game */
     inline bool is_valid() const { return (type < 255); }
+};
+
+/* data from .mad files. details wild puppet encounters for a specific location
+ * table indices correlate to the same index in other tables for the same grass type */
+class MADData
+{
+public:
+    /* encounters in normal grass */
+    uint16_t puppet_ids[10];            /* IDs of puppets found in normal grass */
+    uint8_t puppet_levels[10];          /* Average levels of puppets found in normal grass */
+    uint8_t puppet_styles[10];          /* Style of puppets in normal grass (index into puppet style table, see PuppetData) */
+    uint8_t puppet_ratios[10];          /* Encouter rate weightings of puppets in normal grass */
+
+    /* encounters in blue grass */
+    uint16_t special_puppet_ids[5];     /* IDs of puppets found in blue grass */
+    uint8_t special_puppet_levels[5];   /* Average levels of puppets found in blue grass */
+    uint8_t special_puppet_styles[5];   /* Style of puppets in blue grass (index into puppet style table, see PuppetData) */
+    uint8_t special_puppet_ratios[5];   /* Encouter rate weightings of puppets in blue grass */
+
+    /* null-terminated shift-jis string identifying the location */
+    char location_name[32];
+
+    MADData() {}
+    MADData(const void *data) { read(data); }
+
+    void read(const void *data);
+    void write(void *data);
 };
 
 /* parses csv files and splits each field into a separate string */
