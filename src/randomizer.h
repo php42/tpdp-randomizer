@@ -80,12 +80,12 @@ private:
     HWND wnd_quota_;
     HWND tx_quota_;
     HWND cb_true_rand_skills_;
-    HWND cb_stab_;
+    //HWND cb_stab_;
     HWND grp_share_;
     HWND bn_share_gen_;
     HWND bn_share_load_;
     HWND wnd_share_;
-    HWND cb_dmg_starting_move_;
+    //HWND cb_dmg_starting_move_;
     HWND cb_proportional_stats_;
     HWND cb_strict_trainers_;
     HWND wnd_sc_chance_;
@@ -95,6 +95,7 @@ private:
     HWND wnd_stat_ratio_;
     HWND tx_stat_ratio_;
     HWND cb_cost_;
+    HWND cb_starting_move_;
 
     HFONT hfont_;
 
@@ -148,8 +149,8 @@ private:
     bool rand_prefer_same_type_;
     bool rand_export_puppets_;
     bool rand_true_rand_skills_;
-    bool rand_stab_;
-    bool rand_dmg_starting_move_;
+    //bool rand_stab_;
+    //bool rand_dmg_starting_move_;
     bool rand_stat_scaling_;
     bool rand_strict_trainers_;
     bool rand_trainer_sc_shuffle_;
@@ -161,6 +162,7 @@ private:
     unsigned int stat_ratio_;
     unsigned int rand_cost_;
     unsigned int rand_encounters_;
+    unsigned int rand_starting_move_;
 
     bool read_puppets(Archive& archive);
     bool parse_items(Archive& archive);

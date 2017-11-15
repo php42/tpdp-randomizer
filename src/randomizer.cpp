@@ -83,10 +83,9 @@ enum
     ID_PREFER_SAME,
     ID_HEALTHY,
     ID_TRUE_RAND_SKILLS,
-    ID_STAB,
+    ID_STARTING_MOVE,
     ID_SHARE_GEN,
     ID_SHARE_LOAD,
-    ID_DMG_STARTING_MOVE,
     ID_STAT_SCALING,
     ID_STRICT_TRAINERS,
     ID_COST
@@ -363,8 +362,9 @@ LRESULT CALLBACK Randomizer::WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM 
                 {
                     SET_CHECKED(rnd->cb_prefer_same_type_, false);
                     SET_CHECKED(rnd->cb_true_rand_skills_, false);
-                    SET_CHECKED(rnd->cb_stab_, false);
-                    SET_CHECKED(rnd->cb_dmg_starting_move_, false);
+                    //SET_CHECKED(rnd->cb_stab_, false);
+                    //SET_CHECKED(rnd->cb_dmg_starting_move_, false);
+                    SET_CHECKED(rnd->cb_starting_move_, false);
                 }
                 break;
             case ID_TRUE_RAND_SKILLS:
@@ -375,23 +375,10 @@ LRESULT CALLBACK Randomizer::WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM 
                     //SET_CHECKED(rnd->cb_dmg_starting_move_, false);
                 }
                 break;
-            case ID_STAB:
-                if(IS_CHECKED(rnd->cb_stab_))
+            case ID_STARTING_MOVE:
+                if(GET_3STATE(rnd->cb_starting_move_))
                 {
                     SET_CHECKED(rnd->cb_skills_, true);
-                    SET_CHECKED(rnd->cb_dmg_starting_move_, true);
-                    //SET_CHECKED(rnd->cb_true_rand_skills_, false);
-                }
-                break;
-            case ID_DMG_STARTING_MOVE:
-                if(IS_CHECKED(rnd->cb_dmg_starting_move_))
-                {
-                    SET_CHECKED(rnd->cb_skills_, true);
-                    //SET_CHECKED(rnd->cb_true_rand_skills_, false);
-                }
-                else
-                {
-                    SET_CHECKED(rnd->cb_stab_, false);
                 }
                 break;
             case ID_SHARE_GEN:
@@ -1081,13 +1068,13 @@ bool Randomizer::randomize_puppets(Archive& archive)
                 std::shuffle(skill_deck.begin(), skill_deck.end(), gen_);
 
                 /* ensure every puppet starts with at least one damaging move */
-                if((style.style_type == STYLE_NORMAL) && !skill_deck.empty() && (rand_dmg_starting_move_ || rand_stab_))
+                if((style.style_type == STYLE_NORMAL) && !skill_deck.empty() && rand_starting_move_)
                 {
                     style.style_skills[0] = 56; /* default to yin energy if we don't find a match below */
                     for(auto it = skill_deck.begin(); it != skill_deck.end(); ++it)
                     {
                         auto e = skills_[*it].element;
-                        if((skills_[*it].type != SKILL_TYPE_STATUS) && (skills_[*it].power > 0) && (!rand_stab_ || (e == style.element1) || (e == style.element2)))
+                        if((skills_[*it].type != SKILL_TYPE_STATUS) && (skills_[*it].power > 0) && ((rand_starting_move_ != BST_CHECKED) || (e == style.element1) || (e == style.element2)))
                         {
                             style.style_skills[0] = *it;
                             style.skillset.insert(*it);
@@ -1097,7 +1084,7 @@ bool Randomizer::randomize_puppets(Archive& archive)
                     }
                 }
 
-                for(int j = (((style.style_type == STYLE_NORMAL) && (rand_dmg_starting_move_ || rand_stab_)) ? 1 : 0); j < 11; ++j)
+                for(int j = (((style.style_type == STYLE_NORMAL) && rand_starting_move_) ? 1 : 0); j < 11; ++j)
                 {
                     auto& i(style.style_skills[j]);
                     if((i != 0) && !skill_deck.empty())
@@ -2226,7 +2213,7 @@ bool Randomizer::validate()
        !validate_uint_window(wnd_lvladjust_, L"Level adjustment") ||
        !validate_uint_window(wnd_quota_, L"Quota") ||
        !validate_uint_window(wnd_item_chance_, L"Item Chance") ||
-       !validate_uint_window(wnd_stat_ratio_, L"Stat variance") ||
+       !validate_uint_window(wnd_stat_ratio_, L"Stat ratio") ||
        (!get_window_text(wnd_sc_chance_).empty() && !validate_uint_window(wnd_sc_chance_, L"Skillcard chance")))
     {
         return false;
@@ -2322,7 +2309,7 @@ Randomizer::Randomizer(HINSTANCE hInstance)
     GetClientRect(grp_other_, &rect);
     get_child_rect(grp_other_, pos);
     wnd_lvladjust_ = CreateWindowExW(WS_EX_CLIENTEDGE, L"Edit", L"100", WS_CHILD | WS_VISIBLE | ES_NUMBER | ES_AUTOHSCROLL, pos.left + 10, pos.top + 20, 50, 23, hwnd_, NULL, hInstance, NULL);
-    tx_lvladjust_ = CreateWindowW(L"Static", L"% enemy level adjustment", WS_CHILD | WS_VISIBLE | SS_WORDELLIPSIS, get_child_right(wnd_lvladjust_) + 5, pos.top + 22, (rect.right / 2) - 75, 23, hwnd_, NULL, hInstance, NULL);
+    tx_lvladjust_ = CreateWindowW(L"Static", L"% Enemy level adjustment", WS_CHILD | WS_VISIBLE | SS_WORDELLIPSIS, get_child_right(wnd_lvladjust_) + 5, pos.top + 22, (rect.right / 2) - 75, 23, hwnd_, NULL, hInstance, NULL);
     cb_trainer_party_ = CreateWindowW(L"Button", L"Full trainer party", CB_STYLE, (rect.right / 2) + pos.left + 10, pos.top + 23, (rect.right / 2) - 25, 15, hwnd_, NULL, hInstance, NULL);
     cb_export_locations_ = CreateWindowW(L"Button", L"Export catch locations", CB_STYLE, pos.left + 10, pos.top + 55, (rect.right / 2) - 25, 15, hwnd_, NULL, hInstance, NULL);
     wnd_quota_ = CreateWindowExW(WS_EX_CLIENTEDGE, L"Edit", L"500", WS_CHILD | WS_VISIBLE | ES_NUMBER | WS_DISABLED | ES_AUTOHSCROLL, (rect.right / 2) + pos.left + 10, pos.top + 53, 50, 23, hwnd_, NULL, hInstance, NULL);
@@ -2375,10 +2362,10 @@ Randomizer::Randomizer(HINSTANCE hInstance)
     cb_true_rand_stats_ = CreateWindowW(L"Button", L"True random stats", CB_STYLE, x + (width / 3), y + 150, width_cb, 15, hwnd_, (HMENU)ID_TRUE_RAND_STATS, hInstance, NULL);
     cb_prefer_same_type_ = CreateWindowW(L"Button", L"Prefer same type", CB_STYLE, x + ((width / 3) * 2), y + 150, width_cb, 15, hwnd_, (HMENU)ID_PREFER_SAME, hInstance, NULL);
     cb_true_rand_skills_ = CreateWindowW(L"Button", L"True random skills", CB_STYLE, x, y + 180, width_cb, 15, hwnd_, (HMENU)ID_TRUE_RAND_SKILLS, hInstance, NULL);
-    cb_stab_ = CreateWindowW(L"Button", L"STAB starting move", CB_STYLE, x + (width / 3), y + 180, width_cb, 15, hwnd_, (HMENU)ID_STAB, hInstance, NULL);
-    cb_dmg_starting_move_ = CreateWindowW(L"Button", L"Dmg. starting move", CB_STYLE, x + ((width / 3) * 2), y + 180, width_cb, 15, hwnd_, (HMENU)ID_DMG_STARTING_MOVE, hInstance, NULL);
-    cb_proportional_stats_ = CreateWindowW(L"Button", L"Proportional stats", CB_STYLE, x, y + 210, width_cb, 15, hwnd_, (HMENU)ID_STAT_SCALING, hInstance, NULL);
-    cb_cost_ = CreateWindowW(L"Button", L"Puppet Cost", CB3_STYLE, x + (width / 3), y + 210, width_cb, 15, hwnd_, (HMENU)ID_COST, hInstance, NULL);
+    cb_starting_move_ = CreateWindowW(L"Button", L"STAB starting move", CB3_STYLE, x + (width / 3), y + 180, width_cb, 15, hwnd_, (HMENU)ID_STARTING_MOVE, hInstance, NULL);
+    //cb_dmg_starting_move_ = CreateWindowW(L"Button", L"Dmg. starting move", CB_STYLE, x + ((width / 3) * 2), y + 180, width_cb, 15, hwnd_, (HMENU)ID_DMG_STARTING_MOVE, hInstance, NULL);
+    cb_proportional_stats_ = CreateWindowW(L"Button", L"Proportional stats", CB_STYLE, x + ((width / 3) * 2), y + 180, width_cb, 15, hwnd_, (HMENU)ID_STAT_SCALING, hInstance, NULL);
+    cb_cost_ = CreateWindowW(L"Button", L"Puppet Cost", CB3_STYLE, x, y + 210, width_cb, 15, hwnd_, (HMENU)ID_COST, hInstance, NULL);
 
     set_tooltip(cb_skills_, L"Randomize the skills each puppet can learn");
     set_tooltip(cb_stats_, L"Randomize puppet base stats");
@@ -2395,7 +2382,7 @@ Randomizer::Randomizer(HINSTANCE hInstance)
     set_tooltip(cb_skill_type_, L"Randomize skill type (focus or spread. does not affect status skills)");
     set_tooltip(wnd_lvladjust_, L"Trainer puppets and wild puppets will have their level adjusted to the specified percentage\r\n100% = no change");
     set_tooltip(cb_trainer_party_, L"Trainers will always have 6 puppets.\r\nnew puppets will be randomly generated at the same level as the highest level existing puppet");
-    set_tooltip(cb_encounters_, L"This is a 3-state checkbox. Click twice to get to the \"middle\" state.\nUnchecked: no effect\nChecked: randomized wild puppets\nMiddle: randomized style only (power, defence, etc)");
+    set_tooltip(cb_encounters_, L"This is a 3-state checkbox. Click twice to get to the \"middle\" state.\r\nChecked: randomized wild puppets\r\nMiddle: randomized style only (power, defence, etc)");
     set_tooltip(cb_encounter_rate_, L"Randomize encounter rates of wild puppets.\r\nThis only affects the ratio of each puppet relative to other puppets in the area.\r\nFrequency of encounters in general is not affected.");
     set_tooltip(cb_export_locations_, L"Export the locations where each puppet can be caught in the wild.\r\nThis will be written to catch_locations.txt in the game folder.");
     set_tooltip(cb_use_quota_, L"When stat randomization is enabled, each puppet will recieve the same total sum of stat points (distributed randomly)\r\nThe number of stat points can be adjusted in the \"Stat quota\" field below");
@@ -2406,8 +2393,9 @@ Randomizer::Randomizer(HINSTANCE hInstance)
     set_tooltip(cb_prefer_same_type_, L"Randomization will favor skills that match a puppets typing");
     set_tooltip(cb_export_puppets_, L"Write puppet stats/skillsets/etc to puppets.txt in the game folder");
     set_tooltip(cb_true_rand_skills_, L"Puppet skills are totally random\r\nThe default behaviour preserves the \"move pools\" of puppets, meaning that normal puppets will generally have less powerful moves.\r\nThis option disables that.");
-    set_tooltip(cb_stab_, L"All puppets are guaranteed a damaging same-type starting move (so long as such a move exists in the pool)");
-    set_tooltip(cb_dmg_starting_move_, L"All puppets are guaranteed a damaging starting move\r\nUncheck if you enjoy the possibility of starting with only status moves");
+    //set_tooltip(cb_stab_, L"All puppets are guaranteed a damaging same-type starting move (so long as such a move exists in the pool)");
+    //set_tooltip(cb_dmg_starting_move_, L"All puppets are guaranteed a damaging starting move\r\nUncheck if you enjoy the possibility of starting with only status moves");
+    set_tooltip(cb_starting_move_, L"This is a 3-state checkbox. Click twice to get to the \"middle\" state.\nChecked: All puppets are guaranteed a damaging same-type starting move (so long as such a move exists in the pool)\r\nMiddle: Guaranteed damaging starting move of any type");
     set_tooltip(wnd_share_, L"Share codes allow you to easily share your randomization settings and seed with others. Click generate to create a code for your current settings, or paste in a code and click load to apply those settings.");
     set_tooltip(bn_share_gen_, L"Generate a share code for your current settings and seed");
     set_tooltip(bn_share_load_, L"Load settings and seed from the supplied share code");
@@ -2416,7 +2404,7 @@ Randomizer::Randomizer(HINSTANCE hInstance)
     set_tooltip(wnd_sc_chance_, L"Chance for trainer puppets to have a skill card move (per move slot).\nBlank = shuffle.");
     set_tooltip(wnd_item_chance_, L"Chance for trainer puppets to have a held item.");
     set_tooltip(wnd_stat_ratio_, L"Adjust maximum stat variance when using proportional stats.\nA value of 25 allows stats to change up to a maximum of +/- 25% of the original stat.");
-    set_tooltip(cb_cost_, L"This is a 3-state checkbox. Click twice to get to the \"middle\" state.\nUnchecked: no effect\nChecked: randomized puppet cost\nMiddle: all puppets set to 120 cost");
+    set_tooltip(cb_cost_, L"This is a 3-state checkbox. Click twice to get to the \"middle\" state.\nChecked: randomized puppet cost\nMiddle: all puppets set to 120 cost");
 
     NONCLIENTMETRICSW ncm = {0};
     ncm.cbSize = sizeof(ncm);
@@ -2448,13 +2436,14 @@ Randomizer::Randomizer(HINSTANCE hInstance)
     checkboxes_.push_back(cb_skill_sp_);
     checkboxes_.push_back(cb_skill_prio_);
     checkboxes_.push_back(cb_skill_type_);
-    checkboxes_.push_back(cb_stab_);
-    checkboxes_.push_back(cb_dmg_starting_move_);
+    //checkboxes_.push_back(cb_stab_);
+    //checkboxes_.push_back(cb_dmg_starting_move_);
     checkboxes_.push_back(cb_proportional_stats_);
     checkboxes_.push_back(cb_strict_trainers_);
 
     checkboxes_3state_.push_back(cb_cost_);
     checkboxes_3state_.push_back(cb_encounters_);
+    checkboxes_3state_.push_back(cb_starting_move_);
 }
 
 Randomizer::~Randomizer()
@@ -2543,8 +2532,9 @@ bool Randomizer::randomize()
     rand_skill_sp_ = IS_CHECKED(cb_skill_sp_);
     rand_skill_prio_ = IS_CHECKED(cb_skill_prio_);
     rand_skill_type_ = IS_CHECKED(cb_skill_type_);
-    rand_stab_ = IS_CHECKED(cb_stab_);
-    rand_dmg_starting_move_ = IS_CHECKED(cb_dmg_starting_move_);
+    //rand_stab_ = IS_CHECKED(cb_stab_);
+    //rand_dmg_starting_move_ = IS_CHECKED(cb_dmg_starting_move_);
+    rand_starting_move_ = GET_3STATE(cb_starting_move_);
     rand_stat_scaling_ = IS_CHECKED(cb_proportional_stats_);
     rand_strict_trainers_ = IS_CHECKED(cb_strict_trainers_);
     rand_skills_ = rand_skill_element_ || rand_skill_power_ || rand_skill_acc_ || rand_skill_sp_ || rand_skill_prio_ || rand_skill_type_;
