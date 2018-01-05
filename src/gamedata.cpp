@@ -216,6 +216,20 @@ int PuppetData::level_to_learn(unsigned int style_index, unsigned int skill_id) 
     return -1;
 }
 
+int PuppetData::max_style_index() const
+{
+	int result = 0;
+	for(int i = 0; i < 4; ++i)
+	{
+		if(styles[i].style_type)
+			result = i;
+		else
+			break;
+	}
+
+	return result;
+}
+
 bool ItemData::parse(const CSVEntry& data, bool ynk)
 {
     if((!ynk) && (data.size() != 11))
@@ -401,4 +415,59 @@ void MADData::write(void *data)
     memcpy(&buf[0x4a], special_puppet_levels, sizeof(special_puppet_levels));
     memcpy(&buf[0x4f], special_puppet_styles, sizeof(special_puppet_styles));
     memcpy(&buf[0x54], special_puppet_ratios, sizeof(special_puppet_ratios));
+}
+
+void MADData::clear_encounters()
+{
+	memset(puppet_ids, 0, sizeof(puppet_ids));
+	memset(puppet_levels, 0, sizeof(puppet_levels));
+	memset(puppet_ratios, 0, sizeof(puppet_ratios));
+	memset(puppet_styles, 0, sizeof(puppet_styles));
+	memset(special_puppet_ids, 0, sizeof(special_puppet_ids));
+	memset(special_puppet_levels, 0, sizeof(special_puppet_levels));
+	memset(special_puppet_ratios, 0, sizeof(special_puppet_ratios));
+	memset(special_puppet_styles, 0, sizeof(special_puppet_styles));
+}
+
+void MADEncounter::read(const MADData& data, int index, bool special)
+{
+	assert(index < 10);
+	assert((index < 5) || !special);
+	this->index = index;
+
+	if(special)
+	{
+		id = data.special_puppet_ids[index];
+		level = data.special_puppet_levels[index];
+		style = data.special_puppet_styles[index];
+		weight = data.special_puppet_ratios[index];
+	}
+	else
+	{
+		id = data.puppet_ids[index];
+		level = data.puppet_levels[index];
+		style = data.puppet_styles[index];
+		weight = data.puppet_ratios[index];
+	}
+}
+
+void MADEncounter::write(MADData& data, int index, bool special)
+{
+	assert(index < 10);
+	assert((index < 5) || !special);
+
+	if(special)
+	{
+		data.special_puppet_ids[index] = id;
+		data.special_puppet_levels[index] = level;
+		data.special_puppet_styles[index] = style;
+		data.special_puppet_ratios[index] = weight;
+	}
+	else
+	{
+		data.puppet_ids[index] = id;
+		data.puppet_levels[index] = level;
+		data.puppet_styles[index] = style;
+		data.puppet_ratios[index] = weight;
+	}
 }

@@ -21,11 +21,11 @@
 #define WIN32_LEAN_AND_MEAN
 #include <Windows.h>
 
-#define VERSION_STRING "v1.0.12 BETA"
+#define VERSION_STRING "v1.0.12"
 
-#define VERSION_MAJOR 0
+#define VERSION_MAJOR 1
 #define VERSION_MINOR 0
-#define VERSION_REVISION 0
+#define VERSION_REVISION 12
 
 #define MAKE_VERSION(major, minor, revision) ((major << 16) | (minor << 8) | (revision))
 #define VERSION_INT MAKE_VERSION(VERSION_MAJOR, VERSION_MINOR, VERSION_REVISION)
@@ -69,7 +69,7 @@ private:
     HWND wnd_lvladjust_;
     HWND cb_trainer_party_;
     HWND cb_encounters_;
-    HWND cb_encounter_rate_;
+    //HWND cb_encounter_rates_;
     HWND cb_export_locations_;
     HWND cb_use_quota_;
     HWND cb_healthy_;
@@ -80,12 +80,10 @@ private:
     HWND wnd_quota_;
     HWND tx_quota_;
     HWND cb_true_rand_skills_;
-    //HWND cb_stab_;
     HWND grp_share_;
     HWND bn_share_gen_;
     HWND bn_share_load_;
     HWND wnd_share_;
-    //HWND cb_dmg_starting_move_;
     HWND cb_proportional_stats_;
     HWND cb_strict_trainers_;
     HWND wnd_sc_chance_;
@@ -139,22 +137,17 @@ private:
     bool rand_skill_prio_;
     bool rand_skill_type_;
     bool rand_full_party_;
-    //bool rand_wild_puppets_;
-    //bool rand_wild_style_;
     bool rand_export_locations_;
     bool rand_quota_;
     bool rand_healthy_;
-    bool rand_skillcards_;
     bool rand_true_rand_stats_;
     bool rand_prefer_same_type_;
     bool rand_export_puppets_;
     bool rand_true_rand_skills_;
-    //bool rand_stab_;
-    //bool rand_dmg_starting_move_;
     bool rand_stat_scaling_;
     bool rand_strict_trainers_;
     bool rand_trainer_sc_shuffle_;
-    bool rand_encounter_rate_;
+    //unsigned int rand_encounter_rates_;
     unsigned int level_mod_;
     unsigned int stat_quota_;
     unsigned int trainer_sc_chance_;
@@ -163,6 +156,7 @@ private:
     unsigned int rand_cost_;
     unsigned int rand_encounters_;
     unsigned int rand_starting_move_;
+	unsigned int rand_skillcards_;
 
     bool read_puppets(Archive& archive);
     bool parse_items(Archive& archive);

@@ -129,6 +129,7 @@ public:
     void write(void *data);
 
     int level_to_learn(unsigned int style_index, unsigned int skill_id) const;  /* level required to learn a skill, returns -1 if puppet cannot learn the skill by levelling */
+	int max_style_index() const;
 };
 
 /* base data for items */
@@ -151,6 +152,29 @@ public:
 
     /* returns true if item is valid and usable in-game */
     inline bool is_valid() const { return (type < 255); }
+};
+
+class MADData;
+
+/* describes an encounter entry from a MAD file */
+class MADEncounter
+{
+public:
+	int index;
+	uint16_t id;
+	uint8_t level;
+	uint8_t style;
+	uint8_t weight;
+
+	MADEncounter() {};
+	MADEncounter(int index, uint16_t id, uint8_t level, uint8_t style, uint8_t weight) : index(index), id(id), level(level), style(style), weight(weight) {}
+	MADEncounter(const MADData& data, int index, bool special) { read(data, index, special); };
+
+	/* read the encounter at the given index from the supplied MAD file, 'special' toggles between normal and blue grass encounters */
+	void read(const MADData& data, int index, bool special);
+
+	/* save this encounter to the given index in the supplied MAD file, 'special' toggles between normal and blue grass encounters */
+	void write(MADData& data, int index, bool special);
 };
 
 /* data from .mad files. details wild puppet encounters for a specific location
@@ -178,6 +202,7 @@ public:
 
     void read(const void *data);
     void write(void *data);
+	void clear_encounters();
 };
 
 /* parses csv files and splits each field into a separate string */
