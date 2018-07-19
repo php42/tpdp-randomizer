@@ -147,7 +147,7 @@
     <ClInclude Include="randomizer.h" />
     <ClInclude Include="puppet.h" />
     <ClInclude Include="textconvert.h" />
-    <ClInclude Include="util.h" />
+    <ClInclude Include="endian.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

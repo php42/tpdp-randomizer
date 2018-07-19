@@ -20,7 +20,7 @@
 #include <cstring>
 #include <cstdio>
 #include "textconvert.h"
-#include "util.h"
+#include "endian.h"
 
 Puppet::Puppet()
 {

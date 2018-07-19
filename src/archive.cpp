@@ -16,7 +16,7 @@
 */
 
 #include "archive.h"
-#include "util.h"
+#include "endian.h"
 #include "filesystem.h"
 #include <cstdint>
 #include <cctype>
@@ -113,9 +113,9 @@ void Archive::encrypt()
 {
     const uint8_t *key = is_ynk_ ? KEY_YNK : KEY;
 
-    uint32_t k1 = read_le32(key);
-    uint32_t k2 = read_le32(key + 4);
-    uint32_t k3 = read_le32(key + 8);
+    uint32_t k1 = *(uint32_t*)(key);
+    uint32_t k2 = *(uint32_t*)(key + 4);
+    uint32_t k3 = *(uint32_t*)(key + 8);
 
     auto data = data_.get();
     std::size_t pos = 0;
@@ -230,6 +230,7 @@ std::size_t Archive::get_header_offset(const std::string& filepath) const
         *it = toupper(*it);
     }
 
+    /* enter the spaghetti zone */
     std::size_t pos = file.find_first_of("/\\");
     std::size_t i = dir_table_offset;
     while(pos != std::string::npos)

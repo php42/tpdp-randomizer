@@ -15,8 +15,8 @@
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#ifndef UTIL_H
-#define UTIL_H
+#ifndef ENDIAN_H
+#define ENDIAN_H
 #pragma once
 
 #ifdef __cplusplus
@@ -31,35 +31,35 @@
  * this is intended for serialization and deserialization of integral types
  * to/from buffers such as file and network buffers. */
 
-/* define UTIL_X86 on x86 based cpu architectures for performance optimizations
+/* define ENDIAN_LE_OPTIMIZATION on little endian cpu architectures for performance optimizations
  *
  * strict aliasing rules permit memcpy to be used to convert types, and most
  * compilers will optimize away the temporary variable and the result is a single
  * wide load/store equivalent to a type-pun such as *(uint32_t*)buf */
 
-#ifndef UTIL_X86
-#if (defined(__i386__) || defined(_M_IX86) || defined(__x86_64__) || defined(_M_X64)) && !defined(UTIL_NO_OPTIMIZATION)
-#define UTIL_X86
+#ifndef ENDIAN_LE_OPTIMIZATION
+#if (defined(__i386__) || defined(_M_IX86) || defined(__x86_64__) || defined(_M_X64)) && !defined(ENDIAN_NO_OPTIMIZATION)
+#define ENDIAN_LE_OPTIMIZATION
 #endif
-#endif // UTIL_X86
+#endif // ENDIAN_LE_OPTIMIZATION
 
-inline void write_le64(void *dest, uint64_t val)
+static inline void write_le64(void *dest, uint64_t val)
 {
-#ifndef UTIL_X86
+#ifndef ENDIAN_LE_OPTIMIZATION
     unsigned char *d = (unsigned char*)dest;
-    for(unsigned int i = 0; i < sizeof(val); ++i)
+    for(size_t i = 0; i < sizeof(val); ++i)
     {
         d[i] = (unsigned char)val;
         val >>= 8;
     }
 #else
     memcpy(dest, &val, sizeof(val));
-#endif // UTIL_X86
+#endif // ENDIAN_LE_OPTIMIZATION
 }
 
-inline uint64_t read_le64(const void *src)
+static inline uint64_t read_le64(const void *src)
 {
-#ifndef UTIL_X86
+#ifndef ENDIAN_LE_OPTIMIZATION
     const unsigned char *s = (const unsigned char*)src;
     return (((uint64_t)s[0]) | (((uint64_t)s[1]) << 8) | (((uint64_t)s[2]) << 16) | (((uint64_t)s[3]) << 24)
             | (((uint64_t)s[4]) << 32) | (((uint64_t)s[5]) << 40) | (((uint64_t)s[6]) << 48) | (((uint64_t)s[7]) << 56));
@@ -67,59 +67,59 @@ inline uint64_t read_le64(const void *src)
     uint64_t temp;
     memcpy(&temp, src, sizeof(temp));
     return temp;
-#endif // UTIL_X86
+#endif // ENDIAN_LE_OPTIMIZATION
 }
 
-inline void write_le32(void *dest, uint32_t val)
+static inline void write_le32(void *dest, uint32_t val)
 {
-#ifndef UTIL_X86
+#ifndef ENDIAN_LE_OPTIMIZATION
     unsigned char *d = (unsigned char*)dest;
-    for(unsigned int i = 0; i < sizeof(val); ++i)
+    for(size_t i = 0; i < sizeof(val); ++i)
     {
         d[i] = (unsigned char)val;
         val >>= 8;
     }
 #else
     memcpy(dest, &val, sizeof(val));
-#endif // UTIL_X86
+#endif // ENDIAN_LE_OPTIMIZATION
 }
 
-inline uint32_t read_le32(const void *src)
+static inline uint32_t read_le32(const void *src)
 {
-#ifndef UTIL_X86
+#ifndef ENDIAN_LE_OPTIMIZATION
     const unsigned char *s = (const unsigned char*)src;
     return (((uint32_t)s[0]) | (((uint32_t)s[1]) << 8) | (((uint32_t)s[2]) << 16) | (((uint32_t)s[3]) << 24));
 #else
     uint32_t temp;
     memcpy(&temp, src, sizeof(temp));
     return temp;
-#endif // UTIL_X86
+#endif // ENDIAN_LE_OPTIMIZATION
 }
 
-inline void write_le16(void *dest, uint16_t val)
+static inline void write_le16(void *dest, uint16_t val)
 {
-#ifndef UTIL_X86
+#ifndef ENDIAN_LE_OPTIMIZATION
     unsigned char *d = (unsigned char*)dest;
-    for(unsigned int i = 0; i < sizeof(val); ++i)
+    for(size_t i = 0; i < sizeof(val); ++i)
     {
         d[i] = (unsigned char)val;
         val >>= 8;
     }
 #else
     memcpy(dest, &val, sizeof(val));
-#endif // UTIL_X86
+#endif // ENDIAN_LE_OPTIMIZATION
 }
 
-inline uint16_t read_le16(const void *src)
+static inline uint16_t read_le16(const void *src)
 {
-#ifndef UTIL_X86
+#ifndef ENDIAN_LE_OPTIMIZATION
     const unsigned char *s = (const unsigned char*)src;
     return (((uint16_t)s[0]) | (((uint16_t)s[1]) << 8));
 #else
     uint16_t temp;
     memcpy(&temp, src, sizeof(temp));
     return temp;
-#endif // UTIL_X86
+#endif // ENDIAN_LE_OPTIMIZATION
 }
 
-#endif // UTIL_H
+#endif // ENDIAN_H

@@ -17,7 +17,7 @@
 
 #include "gamedata.h"
 #include <cstdint>
-#include "util.h"
+#include "endian.h"
 #include "textconvert.h"
 #include <cassert>
 

@@ -31,7 +31,7 @@ processorArchitecture='*' publicKeyToken='6595b64144ccf1df' language='*'\"")
 #include "archive.h"
 #include "gamedata.h"
 #include "puppet.h"
-#include "util.h"
+#include "endian.h"
 #include "textconvert.h"
 #include <memory>
 #include <chrono>
@@ -130,9 +130,11 @@ void subtract_set(std::set<T>& s1, const std::set<T>& s2)
 
 static std::wstring get_window_text(HWND hwnd)
 {
-    int len = GetWindowTextLengthW(hwnd) + 1;
+    int len = GetWindowTextLengthW(hwnd);
     if(!len)
         return std::wstring();
+
+    len += 1; // make room for null terminator
 
     wchar_t *buf = new wchar_t[len];
     memset(buf, 0, len * sizeof(wchar_t));
@@ -1490,6 +1492,7 @@ void Randomizer::randomize_dod_file(void *src, const void *rand_data)
                     puppet.ability_index = 0;
             }
 
+            /* TODO: allow leaving items unchanged */
             if(!item_ids.empty() && item_chance(gen_))
             {
                 puppet.held_item_id = item_ids.back();
@@ -2379,7 +2382,7 @@ Randomizer::Randomizer(HINSTANCE hInstance)
 
 Randomizer::~Randomizer()
 {
-    /* since we're only instatiating this once, and it's only destroyed when main returns,
+    /* since we're only instantiating this once, and it's only destroyed when main returns,
      * we can just do this */
     DeleteObject(hfont_);
 }
