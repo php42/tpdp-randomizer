@@ -89,7 +89,7 @@ public:
     void write(void *data);
 };
 
-/* base data for each variant of a particular puppet */
+/* base data for an individual style of a puppet */
 class StyleData
 {
 public:
@@ -101,7 +101,7 @@ public:
 	uint8_t skill_compat_table[16];			/* bitfield of 128 boolean values indicating ability to learn skill cards */
 	uint16_t lv70_skills[8];				/* extra skills at level 70 */
 
-    std::set<unsigned int> skillset;        /* set of all skills ids this puppet can learn by levelling */
+    std::set<unsigned int> skillset;        /* set of all skills ids this puppet can learn by levelling (used internally, not present in game data) */
 
     StyleData();
 	StyleData(const void *data) {read(data);}
@@ -111,7 +111,7 @@ public:
     std::wstring style_string() const;
 };
 
-/* base data for each puppet (including variants) */
+/* base data for a puppet (including styles) */
 class PuppetData
 {
 public:
@@ -165,6 +165,11 @@ public:
 	uint8_t level;
 	uint8_t style;
 	uint8_t weight;
+    
+    /* weight determines encounter rate relative to other puppets in the same grass in the same area.
+     * encounter percentage is calculated by the weight of the given puppet divided by the sum of weights
+     * of all puppets in the same grass.
+     * see Randomizer::randomize_mad_file() in randomizer.cpp for example. */
 
 	MADEncounter() {};
 	MADEncounter(int index, uint16_t id, uint8_t level, uint8_t style, uint8_t weight) : index(index), id(id), level(level), style(style), weight(weight) {}
@@ -232,6 +237,6 @@ public:
     std::string to_string() const;
 };
 
-std::wstring element_string(int element);
+std::wstring element_string(unsigned int element);
 
 #endif // GAMEDATA_H

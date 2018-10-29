@@ -22,6 +22,7 @@
 #include <cctype>
 #include <cstring>
 #include <cassert>
+#include <intrin.h>
 
 static const uint8_t KEY[] = {0x9B, 0x16, 0xFE, 0x3A, 0xB9, 0xE0, 0xA3, 0x17, 0x9A, 0x23, 0x20, 0xAE};
 static const uint8_t KEY_YNK[] = {0x9B, 0x16, 0xFE, 0x3A, 0x98, 0xC2, 0xA0, 0x73, 0x0B, 0x0B, 0xB5, 0x90};
@@ -78,7 +79,7 @@ void ArchiveDirHeader::read(const void *data)
 	file_header_offset = read_le32(&buf[12]);
 }
 
-void Archive::decrypt()
+void Archive::parse()
 {
     if(data_used_ < ARCHIVE_HEADER_SIZE)
         throw ArcError("Archive corrupt or unrecognized format.");
@@ -103,8 +104,7 @@ void Archive::decrypt()
 	else
         throw ArcError("Archive corrupt or unrecognized format.");
 
-    /* encryption is symmetrical, this is actually a decrypt */
-    encrypt();
+    decrypt();
 
 	header_.read(data_.get());
 }
@@ -112,13 +112,33 @@ void Archive::decrypt()
 void Archive::encrypt()
 {
     const uint8_t *key = is_ynk_ ? KEY_YNK : KEY;
+    auto data = data_.get();
+    std::size_t pos = 0;
 
+    /* SSE2 acceleration for lulz
+     * it's kinda wonky but whatever */
+#ifndef ARC_NO_SSE
+
+    /* since the key is only 12 bytes, we need to repeat it 4 times to achieve
+     * a repeatable sequence that can be broken into 16 byte blocks */
+    alignas(16) unsigned char sse_key_buf[48];
+    for(unsigned int i = 0; i < 4; ++i)
+        memcpy(&sse_key_buf[i * 12], key, 12);
+
+    __m128i ssekey1 = _mm_loadu_si128((__m128i*)&sse_key_buf[0]);
+    __m128i ssekey2 = _mm_loadu_si128((__m128i*)&sse_key_buf[16]);
+    __m128i ssekey3 = _mm_loadu_si128((__m128i*)&sse_key_buf[32]);
+
+    for(; (data_used_ - pos) >= 48; pos += 48)
+    {
+        _mm_storeu_si128((__m128i*)&data[pos], _mm_xor_si128(_mm_loadu_si128((__m128i*)&data[pos]), ssekey1));
+        _mm_storeu_si128((__m128i*)&data[pos + 16], _mm_xor_si128(_mm_loadu_si128((__m128i*)&data[pos + 16]), ssekey2));
+        _mm_storeu_si128((__m128i*)&data[pos + 32], _mm_xor_si128(_mm_loadu_si128((__m128i*)&data[pos + 32]), ssekey3));
+    }
+#else
     uint32_t k1 = *(uint32_t*)(key);
     uint32_t k2 = *(uint32_t*)(key + 4);
     uint32_t k3 = *(uint32_t*)(key + 8);
-
-    auto data = data_.get();
-    std::size_t pos = 0;
 
     /* optimization while we have at least 12 bytes of data */
     for(; (data_used_ - pos) >= 12; pos += 12)
@@ -127,6 +147,7 @@ void Archive::encrypt()
         *(uint32_t*)&data[pos + 4] ^= k2;
         *(uint32_t*)&data[pos + 8] ^= k3;
     }
+#endif
 
     /* finish off whatever is left */
     std::size_t j = 0;
@@ -153,7 +174,7 @@ void Archive::open(const std::string& filename)
 
     try
     {
-        decrypt();
+        parse();
     }
     catch(const ArcError&)
     {
@@ -177,7 +198,7 @@ void Archive::open(const std::wstring& filename)
 
     try
     {
-        decrypt();
+        parse();
     }
     catch(const ArcError&)
     {
@@ -195,8 +216,7 @@ bool Archive::save(const std::string& filename)
 
     bool ret = write_file(filename, data_.get(), data_used_);
 
-    /* encryption is symmetrical, this is actually a decrypt */
-    encrypt();
+    decrypt();
 
     return ret;
 }
@@ -210,8 +230,7 @@ bool Archive::save(const std::wstring& filename)
 
     bool ret = write_file(filename, data_.get(), data_used_);
 
-    /* encryption is symmetrical, this is actually a decrypt */
-    encrypt();
+    decrypt();
 
     return ret;
 }
@@ -378,6 +397,9 @@ bool Archive::repack_file(const std::string & filepath, const void * src, size_t
 bool Archive::repack_file(int index, const void * src, size_t len)
 {
     assert(index >= 0);
+    if(index < 0)
+        return false;
+
     size_t file_header_offset = (index  * ARCHIVE_FILE_HEADER_SIZE) + header_.filename_table_offset + header_.file_table_offset;
     if(file_header_offset >= header_.filename_table_offset + header_.dir_table_offset)
         return false;
@@ -432,6 +454,8 @@ bool Archive::repack_file(int index, const void * src, size_t len)
 
 bool Archive::repack_file(const ArcFile& file)
 {
+    if(!file)
+        return false;
     return repack_file(file.file_index(), file.data(), file.size());
 }
 

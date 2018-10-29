@@ -68,6 +68,7 @@ public:
 	uint16_t skills[4];
 	uint8_t unknown_0x71[32];
 	//uint32_t hash;
+
 	/* party puppets only, be sure to set these when saving a new puppet to the party */
 	uint8_t level;				/* display only, actual level is derived from exp */
 	uint16_t hp;				/* current hp remaining, does not affect the actual stat*/

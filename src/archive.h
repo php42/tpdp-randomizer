@@ -107,19 +107,19 @@ private:
     int index_;
 
 public:
-    ArcFile() : buf_(), len_(0) {};
+    ArcFile() : buf_(), len_(0), index_(-1) {};
     ArcFile(char *buf, std::size_t len, int index) : buf_(buf), len_(len), index_(index) {};
     ArcFile(const ArcFile&) = delete;
-    ArcFile(ArcFile&& other) : buf_(std::move(other.buf_)), len_(other.len_), index_(other.index_) {};
+    ArcFile(ArcFile&& other) : buf_(std::move(other.buf_)), len_(other.len_), index_(other.index_) { other.reset(); };
 
     ArcFile& operator =(const ArcFile&) = delete;
-    ArcFile& operator =(ArcFile&& other) { buf_ = std::move(other.buf_); len_ = other.len_; index_ = other.index_; return *this; }
+    ArcFile& operator =(ArcFile&& other) { buf_ = std::move(other.buf_); len_ = other.len_; index_ = other.index_; other.reset(); return *this; }
 
     char *data() const { return buf_.get(); }
     std::size_t size() const { return len_; }
     int file_index() const { return index_; }
 
-    void reset() { buf_.reset(); len_ = 0; index_ = 0; }
+    void reset() { buf_.reset(); len_ = 0; index_ = -1; }
 
     explicit operator bool() const { return ((bool)buf_ && len_ && (index_ > 0)); }
 };
@@ -138,8 +138,10 @@ private:
     std::size_t get_header_offset(const std::string& filepath) const;
     std::size_t get_dir_header_offset(std::size_t file_header_offset) const;
 
-	void decrypt();
+	void parse();
     void encrypt();
+    void decrypt() { encrypt(); } // encryption is symmetical, this is an alias of encrypt()
+
 	std::size_t decompress(const void *src, void *dest) const;
 
 public:
@@ -162,6 +164,8 @@ public:
 	/* returns 0 on error, nonzero otherwise. if dest is NULL, returns decompressed size of the requested file */
 	std::size_t get_file(const std::string& filepath, void *dest) const;
     std::size_t get_file(int index, void *dest) const;
+
+    /* returns empty ArcFile on error */
     ArcFile get_file(const std::string& filepath) const;
     ArcFile get_file(int index) const;
 

@@ -21,71 +21,164 @@
 #include <random>
 #include <cassert>
 #include <type_traits>
+#include <optional>
 
 struct ContainerError : public std::runtime_error
 {
 	using std::runtime_error::runtime_error;
 };
 
-/* a randomized "pool" that will refresh itself when depleted
- * values are copied from a provided source container
- * takes a reference to a PRNG engine, this reference must remain valid
- * for the duration of this objects lifespan */
-template<typename T, typename Src, typename Gen>
+/* A randomized "pool" that will refresh itself when depleted.
+ * Values are copied from a provided source container. */
+template<typename T>
 class RandPool
 {
 private:
 	std::vector<T> pool_;
-	Src src_;
-	Gen& gen_;
-
-	void refresh()
-	{
-		pool_.assign(src_.begin(), src_.end());
-		std::shuffle(pool_.begin(), pool_.end(), gen_);
-	}
+	std::vector<T> src_;
 
 public:
-	RandPool(const Src& src, Gen& gen) : src_(src), gen_(gen)
+    RandPool() = default;
+
+    template<typename Src, typename Rng>
+	RandPool(const Src& src, Rng& gen) : src_(src.begin(), src.end())
 	{
 		assert(src.size());
-		refresh();
+        reset(gen);
 	}
 
-	/* draw a value from the pool. the returned value is removed from the pool.
-	 * if there are no more values in the pool, the pool is refilled with all the original
-	 * values and shuffled again. */
-	T draw()
+    template<typename Src, typename Rng>
+    void assign(const Src& src, Rng& gen)
+    {
+        assert(src.size());
+        src_.assign(src.begin(), src.end());
+        reset(gen);
+    }
+
+    template<typename Rng>
+    void reset(Rng& gen)
+    {
+        assert(src_.size());
+        pool_ = src_;
+        std::shuffle(pool_.begin(), pool_.end(), gen);
+    }
+
+    void clear()
+    {
+        pool_.clear();
+        src_.clear();
+    }
+
+    using iterator = typename std::vector<T>::iterator;
+
+    auto begin()
+    {
+        return pool_.begin();
+    }
+
+    auto end()
+    {
+        return pool_.end();
+    }
+
+    auto erase(iterator it)
+    {
+        return pool_.erase(it);
+    }
+
+    bool empty()
+    {
+        return pool_.empty();
+    }
+
+	/* Draw a value from the pool. the returned value is removed from the pool.
+	 * If there are no more values in the pool, the pool is refilled with all the original
+	 * values and shuffled again.
+     * Throws ContainerError if pool and source container are both empty. */
+    template<typename Rng>
+	T draw(Rng& gen)
 	{
+        assert(src_.size());
+        if(pool_.empty() && src_.empty())
+            throw ContainerError("Tried to draw from an empty pool");
+
 		if(pool_.empty())
-			refresh();
+            reset(gen);
 
 		T ret = pool_.back();
 		pool_.pop_back();
 
 		return ret;
 	}
-
-	static_assert(std::is_copy_constructible<Src>::value, "source container must be copy-constructible");
 };
 
-/* create a randomized "deck" from a source container
- * drawing from this deck returns a specified default value when empty */
-template<typename T, typename Src, typename Gen, T default_value>
+/* Create a randomized "deck" from a source container.
+ * This deck does not refresh itself when empty. */
+template<typename T>
 class RandDeck
 {
 private:
 	std::vector<T> deck_;
 
 public:
-	RandDeck(const Src& src, Gen& gen) : deck_(src.begin(), src.end())
+    RandDeck() = default;
+
+    template<typename Src, typename Rng>
+	RandDeck(const Src& src, Rng& gen) : deck_(src.begin(), src.end())
 	{
 		std::shuffle(deck_.begin(), deck_.end(), gen);
 	}
 
-	/* draw a value from the deck. the returned value is removed from the deck.
-	 * returns default_value if the deck is empty */
-	T draw()
+    template<typename Src, typename Rng>
+    void assign(const Src& src, Rng& gen)
+    {
+        deck_.assign(src.begin(), src.end());
+        std::shuffle(deck_.begin(), deck_.end(), gen);
+    }
+
+    using iterator = typename std::vector<T>::iterator;
+
+    auto begin()
+    {
+        return deck_.begin();
+    }
+
+    auto end()
+    {
+        return deck_.end();
+    }
+
+    auto erase(iterator it)
+    {
+        return deck_.erase(it);
+    }
+
+    bool empty()
+    {
+        return deck_.empty();
+    }
+
+    void clear()
+    {
+        deck_.clear();
+    }
+
+    /* Draw a value from the deck. The returned value is removed from the deck.
+     * Returns empty optional if the deck is empty */
+    std::optional<T> draw()
+    {
+        if(deck_.empty())
+            return {};
+
+        T ret;
+        ret = deck_.back();
+        deck_.pop_back();
+        return ret;
+    }
+
+	/* Draw a value from the deck. The returned value is removed from the deck.
+	 * Returns default_value if the deck is empty */
+	T draw(T default_value)
 	{
 		if(deck_.empty())
 			return default_value;
@@ -95,34 +188,19 @@ public:
 		deck_.pop_back();
 		return ret;
 	}
-};
 
-/* create a randomized "deck" from a source container
- * throws a ContainerError exception if attempting to draw from an empty deck */
-template<typename T, typename Src, typename Gen>
-class RandDeck
-{
-private:
-	std::vector<T> deck_;
+    /* Draw a value from the deck. The returned value is removed from the deck.
+     * Throws ContainerError if the deck is empty */
+    T draw_throw()
+    {
+        if(deck_.empty())
+            throw ContainerError("Tried to draw from an empty deck");
 
-public:
-	RandDeck(const Src& src, Gen& gen) : deck_(src.begin(), src.end())
-	{
-		std::shuffle(deck_.begin(), deck_.end(), gen);
-	}
-
-	/* draw a value from the deck. the returned value is removed from the deck.
-	 * throws ContainerError if the deck is empty */
-	T draw()
-	{
-		if(deck_.empty())
-			throw ContainerError("Tried to draw from an empty deck");
-
-		T ret;
-		ret = deck_.back();
-		deck_.pop_back();
-		return ret;
-	}
+        T ret;
+        ret = deck_.back();
+        deck_.pop_back();
+        return ret;
+    }
 };
 
 #endif // !CONTAINERS_H

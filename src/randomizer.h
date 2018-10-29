@@ -21,22 +21,29 @@
 #define WIN32_LEAN_AND_MEAN
 #include <Windows.h>
 
-#define VERSION_STRING "v1.0.12"
+#define VERSION_STRING "v1.1.0 BETA"
 
-#define VERSION_MAJOR 1
+#define VERSION_MAJOR 0
 #define VERSION_MINOR 0
-#define VERSION_REVISION 12
+#define VERSION_REVISION 0
 
 #define MAKE_VERSION(major, minor, revision) ((major << 16) | (minor << 8) | (revision))
 #define VERSION_INT MAKE_VERSION(VERSION_MAJOR, VERSION_MINOR, VERSION_REVISION)
 
 #include "gamedata.h"
 #include "archive.h"
+#include "containers.h"
 #include <string>
 #include <map>
 #include <set>
 #include <vector>
 #include <random>
+#include <optional>
+
+typedef std::set<unsigned int> IDSet;
+typedef std::vector<unsigned int> IDVec;
+typedef RandPool<unsigned int> IDPool;
+typedef RandDeck<unsigned int> IDDeck;
 
 class Randomizer
 {
@@ -103,17 +110,18 @@ private:
     std::map<int, PuppetData> puppets_;
     std::map<int, SkillData> skills_;
     std::map<unsigned int, ItemData> items_;
-    std::vector<int> valid_puppet_ids_;
-    std::vector<int> puppet_id_pool_;
+    IDVec valid_puppet_ids_;
+    //std::vector<int> puppet_id_pool_;
+    IDPool puppet_id_pool_;
     std::vector<std::wstring> puppet_names_;
     std::map<int, std::wstring> skill_names_;
     std::map<int, std::wstring> ability_names_;
-    std::set<unsigned int> valid_skills_;
-    std::set<unsigned int> valid_abilities_;
-    std::set<unsigned int> skillcard_ids_;
-    std::set<unsigned int> held_item_ids_;
-    std::vector<unsigned int> normal_stats_;
-    std::vector<unsigned int> evolved_stats_;
+    IDSet valid_skills_;
+    IDSet valid_abilities_;
+    IDSet skillcard_ids_;
+    IDSet held_item_ids_;
+    IDVec normal_stats_;
+    IDVec evolved_stats_;
     std::map<unsigned int, unsigned int> old_costs_;
     std::multiset<std::wstring> location_names_;
 
@@ -158,7 +166,7 @@ private:
     unsigned int rand_starting_move_;
 	unsigned int rand_skillcards_;
 
-    bool read_puppets(Archive& archive);
+    bool parse_puppets(Archive& archive);
     bool parse_items(Archive& archive);
     bool parse_skill_names(Archive& archive);
     bool parse_ability_names(Archive& archive);
@@ -187,7 +195,28 @@ private:
     unsigned int exp_for_level(const PuppetData& data, unsigned int level) const;
     unsigned int exp_for_level(unsigned int cost, unsigned int level) const;
 
+    /* search for a skill matching one of the given elements and remove it from the deck.
+     * if a match is found, returns an optional with the skill ID.
+     * if no match is found, returns empty optional */
+    template <typename T>
+    std::optional<unsigned int> get_stab_skill(T src, int element1, int element2)
+    {
+        for(auto it = src.begin(); it != src.end(); ++it)
+        {
+            auto e = skills_[*it].element;
+            if((e == element1) || (e == element2))
+            {
+                auto ret = *it;
+                src.erase(it);
+                return ret;
+            }
+        }
+
+        return {};
+    }
+
     void error(const std::wstring& msg);
+    bool msg_yesno(const std::wstring& msg);
 
     HWND set_tooltip(HWND control, wchar_t *msg);
 

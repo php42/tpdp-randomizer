@@ -33,17 +33,15 @@ processorArchitecture='*' publicKeyToken='6595b64144ccf1df' language='*'\"")
 #include "puppet.h"
 #include "endian.h"
 #include "textconvert.h"
-#include <memory>
-#include <chrono>
 #include <cmath>
 #include <algorithm>
 #include <CommCtrl.h>
 #include <ShlObj.h>
 #include <cassert>
-#include <iterator>
 #include <cwchar>
 #include <type_traits>
 #include <sstream>
+#include <utility>
 
 #define MW_STYLE (WS_OVERLAPPED | WS_VISIBLE | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX)
 #define CB_STYLE (WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX)
@@ -119,14 +117,12 @@ void subtract_set(std::vector<T>& vec, const std::set<T>& s)
     }
 }
 
-/*
 template<typename T>
 void subtract_set(std::set<T>& s1, const std::set<T>& s2)
 {
     for(auto i : s2)
         s1.erase(i);
 }
-*/
 
 static std::wstring get_window_text(HWND hwnd)
 {
@@ -632,7 +628,7 @@ int Randomizer::get_child_right(HWND hwnd)
 /* detect valid puppet/skill/etc IDs from the game data.
  * this eliminates a dependecy on prebuilt tables and should work
  * for any version of the game. */
-bool Randomizer::read_puppets(Archive& archive)
+bool Randomizer::parse_puppets(Archive& archive)
 {
     ArcFile file;
     if(!(file = archive.get_file("doll/dolldata.dbs")))
@@ -644,7 +640,7 @@ bool Randomizer::read_puppets(Archive& archive)
     const char *buf = file.data();
 
     /* there's a lot of unimplemented stuff floating around the files,
-    * so find all skills which are actually used by puppets */
+     * so find all skills which are actually used by puppets */
     for(unsigned int pos = 0; pos < file.size(); pos += PUPPET_DATA_SIZE)
     {
         PuppetData puppet(&buf[pos]);
@@ -704,6 +700,7 @@ bool Randomizer::read_puppets(Archive& archive)
 
     std::shuffle(normal_stats_.begin(), normal_stats_.end(), gen_);
     std::shuffle(evolved_stats_.begin(), evolved_stats_.end(), gen_);
+    puppet_id_pool_.assign(valid_puppet_ids_, gen_);
 
     return true;
 }
@@ -766,6 +763,8 @@ bool Randomizer::parse_items(Archive& archive)
         archive.repack_file("item/ItemData.csv", temp.c_str(), temp.length());
     }
 
+    /* there are some items that otherwise appear to be real items but aren't actually implemented in-game
+     * they follow the naming convention of the other unimplemented items i.e. "ItemXXX", so we filter those out too */
     for(const auto& it : csv.data())
     {
         ItemData item;
@@ -970,42 +969,25 @@ bool Randomizer::randomize_puppets(Archive& archive)
         /* randomize move sets */
         if(rand_skillsets_)
         {
-            std::vector<unsigned int> skill_deck;
+            IDDeck skill_deck;
             if(rand_true_rand_skills_)
-                skill_deck.assign(valid_skills_.begin(), valid_skills_.end());
+                skill_deck.assign(valid_skills_, gen_);
             else
-                skill_deck.assign(valid_base_skills.begin(), valid_base_skills.end());
-            std::shuffle(skill_deck.begin(), skill_deck.end(), gen_);
+                skill_deck.assign(valid_base_skills, gen_);
 
             /* moves shared by all styles of a particular puppet */
             for(auto& i : puppet.base_skills)
             {
-                if((i != 0) && !skill_deck.empty())
+                if(i != 0)
                 {
                     if(rand_prefer_same_type_ && chance60(gen_))
                     {
-                        bool found = false;
-                        for(auto it = skill_deck.begin(); it != skill_deck.end(); ++it)
-                        {
-                            auto e = skills_[*it].element;
-                            if((e == puppet.styles[0].element1) || (e == puppet.styles[0].element2))
-                            {
-                                i = *it;
-                                skill_deck.erase(it);
-                                found = true;
-                                break;
-                            }
-                        }
-                        if(!found)
-                        {
-                            i = skill_deck.back();
-                            skill_deck.pop_back();
-                        }
+                        auto val = get_stab_skill(skill_deck, puppet.styles[0].element1, puppet.styles[0].element2);
+                        i = (val) ? *val : skill_deck.draw(i); // if we find a stab skill, use it. otherwise draw a random skill. keep original if deck is empty.
                     }
                     else
                     {
-                        i = skill_deck.back();
-                        skill_deck.pop_back();
+                        i = skill_deck.draw(i); // draw a random skill. keep original if deck is empty.
                     }
                 }
             }
@@ -1022,53 +1004,49 @@ bool Randomizer::randomize_puppets(Archive& archive)
             {
                 style.skillset.clear();
                 style.skillset = puppet.styles[0].skillset;
-                std::vector<unsigned int> skill_deck;
+                IDSet skill_set;
+                IDDeck skill_deck;
 
                 for(auto& i : puppet.base_skills)
                     style.skillset.insert(i);
 
+                /* level 100 move */
                 if((style.lv100_skill != 0) && !valid_lv100_skills.empty())
                 {
                     if(rand_true_rand_skills_)
-                        skill_deck.assign(valid_skills_.begin(), valid_skills_.end());
+                        skill_set = valid_skills_;
                     else
-                        skill_deck.assign(valid_lv100_skills.begin(), valid_lv100_skills.end());
-                    subtract_set(skill_deck, style.skillset);
-                    if(!skill_deck.empty())
+                        skill_set = valid_lv100_skills;
+                    subtract_set(skill_set, style.skillset);
+                    skill_deck.assign(skill_set, gen_);
+
+                    if(rand_prefer_same_type_ && chance60(gen_))
                     {
-                        std::shuffle(skill_deck.begin(), skill_deck.end(), gen_);
-                        style.lv100_skill = skill_deck[0];
-                        if(rand_prefer_same_type_ && chance60(gen_))
-                        {
-                            for(auto i : skill_deck)
-                            {
-                                auto e = skills_[i].element;
-                                if((e == style.element1) || (e == style.element2))
-                                {
-                                    style.lv100_skill = i;
-                                    break;
-                                }
-                            }
-                        }
+                        auto val = get_stab_skill(skill_deck, style.element1, style.element2);
+                        style.lv100_skill = (val) ? *val : skill_deck.draw(style.lv100_skill);
+                    }
+                    else
+                    {
+                        style.lv100_skill = skill_deck.draw(style.lv100_skill);
                     }
                 }
                 style.skillset.insert(style.lv100_skill);
 
                 if(rand_true_rand_skills_)
-                    skill_deck.assign(valid_skills_.begin(), valid_skills_.end());
+                    skill_set = valid_skills_;
                 else if(style.style_type == STYLE_NORMAL)
                 {
-                    skill_deck.assign(valid_base_skills.begin(), valid_base_skills.end());
+                    skill_set = valid_base_skills;
                     for(auto i : valid_normal_skills)
-                        skill_deck.push_back(i);
+                        skill_set.insert(i);
                 }
                 else
-                    skill_deck.assign(valid_evolved_skills.begin(), valid_evolved_skills.end());
-                subtract_set(skill_deck, style.skillset);
-                std::shuffle(skill_deck.begin(), skill_deck.end(), gen_);
+                    skill_set = valid_evolved_skills;
+                subtract_set(skill_set, style.skillset);
+                skill_deck.assign(skill_set, gen_);
 
                 /* ensure every puppet starts with at least one damaging move */
-                if((style.style_type == STYLE_NORMAL) && !skill_deck.empty() && rand_starting_move_)
+                if((style.style_type == STYLE_NORMAL) && rand_starting_move_)
                 {
                     style.style_skills[0] = 56; /* default to yin energy if we don't find a match below */
                     for(auto it = skill_deck.begin(); it != skill_deck.end(); ++it)
@@ -1077,89 +1055,63 @@ bool Randomizer::randomize_puppets(Archive& archive)
                         if((skills_[*it].type != SKILL_TYPE_STATUS) && (skills_[*it].power > 0) && ((rand_starting_move_ != BST_CHECKED) || (e == style.element1) || (e == style.element2)))
                         {
                             style.style_skills[0] = *it;
-                            style.skillset.insert(*it);
                             skill_deck.erase(it);
                             break;
                         }
                     }
+
+                    style.skillset.insert(style.style_skills[0]);
                 }
 
+                /* fill in the rest of the moves */
                 for(int j = (((style.style_type == STYLE_NORMAL) && rand_starting_move_) ? 1 : 0); j < 11; ++j)
                 {
                     auto& i(style.style_skills[j]);
-                    if((i != 0) && !skill_deck.empty())
+                    if(!i)
+                        continue;
+
+                    if(rand_prefer_same_type_ && chance60(gen_))
                     {
-                        if(rand_prefer_same_type_ && chance60(gen_))
-                        {
-                            bool found = false;
-                            for(auto it = skill_deck.begin(); it != skill_deck.end(); ++it)
-                            {
-                                auto e = skills_[*it].element;
-                                if((e == style.element1) || (e == style.element2))
-                                {
-                                    i = *it;
-                                    skill_deck.erase(it);
-                                    found = true;
-                                    break;
-                                }
-                            }
-                            if(!found)
-                            {
-                                i = skill_deck.back();
-                                skill_deck.pop_back();
-                            }
-                        }
-                        else
-                        {
-                            i = skill_deck.back();
-                            skill_deck.pop_back();
-                        }
+                        auto val = get_stab_skill(skill_deck, style.element1, style.element2);
+                        i = (val) ? *val : skill_deck.draw(i);
                     }
+                    else
+                    {
+                        i = skill_deck.draw(i);
+                    }
+
                     style.skillset.insert(i);
                 }
 
                 if(rand_true_rand_skills_)
-                    skill_deck.assign(valid_skills_.begin(), valid_skills_.end());
+                    skill_set = valid_skills_;
                 else
-                    skill_deck.assign(valid_lv70_skills.begin(), valid_lv70_skills.end());
-                subtract_set(skill_deck, style.skillset);
-                std::shuffle(skill_deck.begin(), skill_deck.end(), gen_);
+                    skill_set = valid_lv70_skills;
+                subtract_set(skill_set, style.skillset);
+                skill_deck.assign(skill_set, gen_);
 
+                /* level 70 moves */
                 for(auto& i : style.lv70_skills)
                 {
-                    if((i != 0) && !skill_deck.empty())
+                    if(!i)
+                        continue;
+
+                    if(rand_prefer_same_type_ && chance60(gen_))
                     {
-                        if(rand_prefer_same_type_ && chance60(gen_))
-                        {
-                            bool found = false;
-                            for(auto it = skill_deck.begin(); it != skill_deck.end(); ++it)
-                            {
-                                auto e = skills_[*it].element;
-                                if((e == style.element1) || (e == style.element2))
-                                {
-                                    i = *it;
-                                    skill_deck.erase(it);
-                                    found = true;
-                                    break;
-                                }
-                            }
-                            if(!found)
-                            {
-                                i = skill_deck.back();
-                                skill_deck.pop_back();
-                            }
-                        }
-                        else
-                        {
-                            i = skill_deck.back();
-                            skill_deck.pop_back();
-                        }
+                        auto val = get_stab_skill(skill_deck, style.element1, style.element2);
+                        i = (val) ? *val : skill_deck.draw(i);
                     }
+                    else
+                    {
+                        i = skill_deck.draw(i);
+                    }
+
                     style.skillset.insert(i);
                 }
 
                 style.skillset.erase(0);
 
+                /* skillcard moves */
                 memset(style.skill_compat_table, 0, sizeof(style.skill_compat_table));
                 for(auto i : skillcard_ids_)
                 {
@@ -1172,7 +1124,7 @@ bool Randomizer::randomize_puppets(Archive& archive)
                     {
                         auto e = skills_[items_[i].skill_id].element;
                         bool same_element = ((e == style.element1) || (e == style.element2));
-                        if((same_element && chance75(gen_)) || chance25(gen_))
+                        if((same_element && chance60(gen_)) || ((!same_element) && chance25(gen_)))
                             style.skill_compat_table[compat_index] |= (1 << offset);
                     }
                     else if(chance35(gen_))
@@ -1187,7 +1139,7 @@ bool Randomizer::randomize_puppets(Archive& archive)
             {
                 memset(style.abilities, 0, sizeof(style.abilities));
                 std::shuffle(ability_deck.begin(), ability_deck.end(), gen_);
-                int index = 0;
+                size_t index = 0;
                 for(int i = 0; i < 2; ++i)
                 {
                     /* don't give were-hakutaku to anyone other than keine */
@@ -1201,6 +1153,8 @@ bool Randomizer::randomize_puppets(Archive& archive)
                     /* don't give three bodies to anyone other than hecatia */
                     while((ability_deck[index] == 382) && (puppet.id != 131))
                         ++index;
+
+                    assert(index < ability_deck.size());
 
                     if((i == 0) || chance90(gen_))
                         style.abilities[i] = ability_deck[index++];
@@ -1310,7 +1264,7 @@ void Randomizer::randomize_dod_file(void *src, const void *rand_data)
 {
     char *buf = (char*)src + 0x2C;
     char *endbuf = buf + (6 * PUPPET_SIZE_BOX);
-    std::vector<unsigned int> item_ids(held_item_ids_.begin(), held_item_ids_.end());
+    IDDeck item_deck(held_item_ids_, gen_);
     std::uniform_int_distribution<int> iv(0, 0xf);
     std::uniform_int_distribution<int> ev(0, 64);
     std::uniform_int_distribution<int> pick_ev(0, 5);
@@ -1318,8 +1272,6 @@ void Randomizer::randomize_dod_file(void *src, const void *rand_data)
     std::bernoulli_distribution item_chance(trainer_item_chance_ / 100.0);
     std::bernoulli_distribution coin_flip(0.5);
     std::bernoulli_distribution skillcard_chance(trainer_sc_chance_ / 100.0);
-
-    std::shuffle(item_ids.begin(), item_ids.end(), gen_);
 
     unsigned int max_lvl = 0;
     double lvl_mul = double(level_mod_) / 100.0;
@@ -1331,6 +1283,7 @@ void Randomizer::randomize_dod_file(void *src, const void *rand_data)
 
         /* if we've changed puppet costs, trainer puppets will have exp based on a different cost value.
          * use the old cost value to determine the correct level. */
+        assert(!rand_cost_ || !puppet.puppet_id || old_costs_.count(puppet.puppet_id));
         unsigned int lvl = (rand_cost_) ? level_from_exp(old_costs_[puppet.puppet_id], puppet.exp) : level_from_exp(puppets_[puppet.puppet_id], puppet.exp);
 
         if(level_mod_ != 100)
@@ -1351,19 +1304,9 @@ void Randomizer::randomize_dod_file(void *src, const void *rand_data)
             PuppetData& data(puppets_[valid_puppet_ids_[id(gen_)]]);
             puppet.puppet_id = data.id;
 
+            assert(data.max_style_index() > 0);
             if(lvl >= 30)
-            {
-                int max_index = 0;
-                for(int j = 0; j < 4; ++j)
-                {
-                    if(data.styles[j].style_type > 0)
-                        max_index = j;
-                    else
-                        break;
-                }
-
-                puppet.style_index = std::uniform_int_distribution<int>(0, max_index)(gen_);
-            }
+                puppet.style_index = std::uniform_int_distribution<int>(1, data.max_style_index())(gen_);
             else
                 puppet.style_index = 0;
 
@@ -1406,40 +1349,19 @@ void Randomizer::randomize_dod_file(void *src, const void *rand_data)
             if(rand_trainer_sc_shuffle_)
                 skill_set.insert(skillcards.begin(), skillcards.end());
 
-            std::vector<unsigned int> skill_deck(skill_set.begin(), skill_set.end());
-            std::vector<unsigned int> skillcard_deck(skillcards.begin(), skillcards.end());
+            IDDeck skill_deck(skill_set, gen_);
+            IDDeck skillcard_deck;
 
-            std::shuffle(skill_deck.begin(), skill_deck.end(), gen_);
             if(!rand_trainer_sc_shuffle_)
-                std::shuffle(skillcard_deck.begin(), skillcard_deck.end(), gen_);
+                skillcard_deck.assign(skillcards, gen_);
 
             bool has_sign_skill = false;
             for(auto& i : puppet.skills)
             {
                 if(!rand_trainer_sc_shuffle_ && skillcard_chance(gen_))
-                {
-                    if(!skillcard_deck.empty())
-                    {
-                        i = skillcard_deck.back();
-                        skillcard_deck.pop_back();
-                    }
-                    else
-                    {
-                        i = 0;
-                    }
-                }
+                    i = skillcard_deck.draw(0);
                 else
-                {
-                    if(!skill_deck.empty())
-                    {
-                        i = skill_deck.back();
-                        skill_deck.pop_back();
-                    }
-                    else
-                    {
-                        i = 0;
-                    }
-                }
+                    i = skill_deck.draw(0);
                 
                 /* check if we have a sign skill now, and if so remove all other sign skills from the pool */
                 if(!has_sign_skill && is_sign_skill(i))
@@ -1485,19 +1407,13 @@ void Randomizer::randomize_dod_file(void *src, const void *rand_data)
                 puppet.evs[k] += j;
             }
 
-            if(coin_flip(gen_))
-            {
-                puppet.ability_index ^= 1;
-                if(data.styles[puppet.style_index].abilities[puppet.ability_index] == 0)
-                    puppet.ability_index = 0;
-            }
+            puppet.ability_index = coin_flip(gen_) ? 1 : 0;
+            if(data.styles[puppet.style_index].abilities[puppet.ability_index] == 0)
+                puppet.ability_index = 0;
 
             /* TODO: allow leaving items unchanged */
-            if(!item_ids.empty() && item_chance(gen_))
-            {
-                puppet.held_item_id = item_ids.back();
-                item_ids.pop_back();
-            }
+            if(item_chance(gen_))
+                puppet.held_item_id = item_deck.draw(0);
             else
                 puppet.held_item_id = 0;
 
@@ -1756,14 +1672,7 @@ void Randomizer::randomize_mad_file(void *data)
 		/* randomize puppets and styles */
 		for(auto& i : encounters)
 		{
-			if(puppet_id_pool_.empty())
-			{
-				puppet_id_pool_ = valid_puppet_ids_;
-				std::shuffle(puppet_id_pool_.begin(), puppet_id_pool_.end(), gen_);
-			}
-
-			i.id = puppet_id_pool_.back();
-			puppet_id_pool_.pop_back();
+			i.id = puppet_id_pool_.draw(gen_);
 
 			if(i.level >= 32)
 				i.style = std::uniform_int_distribution<int>(0, puppets_[i.id].max_style_index())(gen_);
@@ -1772,14 +1681,7 @@ void Randomizer::randomize_mad_file(void *data)
 		}
 		for(auto& i : special_encounters)
 		{
-			if(puppet_id_pool_.empty())
-			{
-				puppet_id_pool_ = valid_puppet_ids_;
-				std::shuffle(puppet_id_pool_.begin(), puppet_id_pool_.end(), gen_);
-			}
-
-			i.id = puppet_id_pool_.back();
-			puppet_id_pool_.pop_back();
+			i.id = puppet_id_pool_.draw(gen_);
 
 			if(i.level >= 32)
 				i.style = std::uniform_int_distribution<int>(0, puppets_[i.id].max_style_index())(gen_);
@@ -2075,10 +1977,17 @@ bool Randomizer::load_share_code()
             version_string += L'.';
             version_string += std::to_wstring((uint8_t)ver);
 
-            error(L"This code appears to be for a different version of the randomizer, or may not be a share code at all.\r\n"
-                   "The encoded version number appears to be: \"" + version_string + L"\"\r\n"
-                   "If you really want to use it, check for a matching version of the randomizer from https://github.com/php42/tpdp-randomizer/releases");
-            return false;
+            if(!msg_yesno(L"This code appears to be for a different version of the randomizer and may not work as expected.\r\n"
+                           "The encoded version number appears to be: \"" + version_string + L"\"\r\n"
+                           "If you really want to use it, check for a matching version of the randomizer from https://github.com/php42/tpdp-randomizer/releases\r\n"
+                           "Would you like to try to load this code anyway?"))
+                return false;
+        }
+        else if((ver == 0) && (ver != VERSION_INT))
+        {
+            if(!msg_yesno(L"This code looks like it's from a beta or git build of the randomizer and may not work as expected.\r\n"
+                           "Would you like to try to load this code anyway?"))
+                return false;
         }
         else if(ver != VERSION_INT)
             throw std::exception();
@@ -2195,16 +2104,16 @@ bool Randomizer::validate_uint_window(HWND hwnd, const std::wstring& name)
     try
     {
         /* volatile so the compiler doesn't optimize the entire call away (unlikely but possible?) */
-        volatile unsigned long unused = std::stoul(str);
-    }
-    catch(const std::invalid_argument&)
-    {
-        error(L"Invalid " + name + L" value.");
-        return false;
+        volatile auto unused = std::stoul(str);
     }
     catch(const std::out_of_range&)
     {
         error(name + L" value too large!\r\nValues must be less than 2^32");
+        return false;
+    }
+    catch(const std::exception&)
+    {
+        error(L"Invalid " + name + L" value.");
         return false;
     }
 
@@ -2213,7 +2122,7 @@ bool Randomizer::validate_uint_window(HWND hwnd, const std::wstring& name)
 
 /* raw winapi so we don't have any dependencies */
 /* FIXME: there's probably a way to do all this with resource files or something
- * I'm not exerienced enough with Windows GUI stuff to know how this is normally done */
+ * I'm not experienced enough with Windows GUI stuff to know how this is normally done */
 Randomizer::Randomizer(HINSTANCE hInstance)
 {
     hInstance_ = hInstance;
@@ -2494,7 +2403,7 @@ bool Randomizer::randomize()
     if(!open_archive(archive, path))
         return false;
 
-    if(!read_puppets(archive))
+    if(!parse_puppets(archive))
         return false;
 
     if(!parse_items(archive))
@@ -2600,6 +2509,12 @@ void Randomizer::encrypt_puppet(void *src, const void *rand_data, std::size_t le
 void Randomizer::error(const std::wstring& msg)
 {
     MessageBoxW(hwnd_, msg.c_str(), L"Error", MB_OK | MB_ICONERROR);
+}
+
+bool Randomizer::msg_yesno(const std::wstring& msg)
+{
+    auto ret = MessageBoxW(hwnd_, msg.c_str(), L"Error", MB_YESNO | MB_ICONERROR);
+    return (ret == IDYES);
 }
 
 unsigned int Randomizer::level_from_exp(const PuppetData& data, unsigned int exp) const

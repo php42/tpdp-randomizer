@@ -16,13 +16,50 @@
 */
 
 #include "gamedata.h"
-#include <cstdint>
 #include "endian.h"
 #include "textconvert.h"
 #include <cassert>
+#include <utility>
 
-static const unsigned int style_levels[] = {0, 0, 0, 0, 30, 36, 42, 49, 56, 63, 70};
-static const unsigned int base_levels[] = {7, 10, 14, 19, 24};
+static const unsigned int g_style_levels[] = {0, 0, 0, 0, 30, 36, 42, 49, 56, 63, 70};
+static const unsigned int g_base_levels[] = {7, 10, 14, 19, 24};
+
+static const wchar_t *g_style_names[] = {
+    L"None",
+    L"Normal",
+    L"Power",
+    L"Defense",
+    L"Assist",
+    L"Speed",
+    L"Extra",
+};
+
+static const wchar_t *g_element_names[] = {
+    L"None",
+    L"Void",
+    L"Fire",
+    L"Water",
+    L"Nature",
+    L"Earth",
+    L"Steel",
+    L"Wind",
+    L"Electric",
+    L"Light",
+    L"Dark",
+    L"Nether",
+    L"Poison",
+    L"Fighting",
+    L"Illusion",
+    L"Sound",
+    L"Dream",
+    L"Warped",
+};
+
+static constexpr auto g_num_styles = sizeof(g_style_names) / sizeof(g_style_names[0]);
+static constexpr auto g_num_elements = sizeof(g_element_names) / sizeof(g_element_names[0]);
+
+static_assert(ELEMENT_MAX == g_num_elements);
+static_assert(STYLE_MAX == g_num_styles);
 
 void SkillData::read(const void *data)
 {
@@ -114,6 +151,14 @@ void StyleData::write(void * data)
 
 std::wstring StyleData::style_string() const
 {
+    assert(style_type < STYLE_MAX);
+
+    if(style_type < g_num_styles)
+        return g_style_names[style_type];
+    else
+        return L"Unknown";
+
+    /*
 	switch(style_type)
 	{
     case STYLE_NORMAL:
@@ -131,8 +176,10 @@ std::wstring StyleData::style_string() const
     case STYLE_NONE:
         return L"None";
 	default:
+        assert(false);
 		return L"UNKNOWN";
 	}
+    */
 }
 
 PuppetData::PuppetData()
@@ -192,13 +239,13 @@ int PuppetData::level_to_learn(unsigned int style_index, unsigned int skill_id) 
     for(int i = 0; i < 5; ++i)
     {
         if(skill_id == base_skills[i])
-            return base_levels[i];
+            return g_base_levels[i];
     }
 
     for(int i = 0; i < 11; ++i)
     {
         if(skill_id == styles[style_index].style_skills[i])
-            return style_levels[i];
+            return g_style_levels[i];
     }
 
     for(auto i : styles[style_index].lv70_skills)
@@ -331,8 +378,16 @@ std::string CSVFile::to_string() const
     return utf_to_sjis(temp);
 }
 
-std::wstring element_string(int element)
+std::wstring element_string(unsigned int element)
 {
+    assert(element < ELEMENT_MAX);
+
+    if(element < g_num_elements)
+        return g_element_names[element];
+    else
+        return L"Unknown";
+
+    /*
     switch(element)
     {
     case ELEMENT_NONE:
@@ -375,6 +430,7 @@ std::wstring element_string(int element)
         assert(false);
         return L"Unknown";
     }
+    */
 }
 
 void MADData::read(const void *data)
