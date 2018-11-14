@@ -17,15 +17,6 @@
 
 /* Reader beware, insanity lies ahead! */
 
-/* this could go in the command line, but i'll dump it here so it's conspicuous */
-#pragma comment(linker,"\"/manifestdependency:type='win32' \
-name='Microsoft.Windows.Common-Controls' version='6.0.0.0' \
-processorArchitecture='*' publicKeyToken='6595b64144ccf1df' language='*'\"")
-
-#define WIN32_LEAN_AND_MEAN
-#define NOMINMAX
-#include <Windows.h>
-
 #include "randomizer.h"
 #include "filesystem.h"
 #include "archive.h"
@@ -35,65 +26,17 @@ processorArchitecture='*' publicKeyToken='6595b64144ccf1df' language='*'\"")
 #include "textconvert.h"
 #include <cmath>
 #include <algorithm>
-#include <CommCtrl.h>
-#include <ShlObj.h>
 #include <cassert>
 #include <cwchar>
 #include <type_traits>
 #include <sstream>
 #include <utility>
 
-#define MW_STYLE (WS_OVERLAPPED | WS_VISIBLE | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX)
-#define CB_STYLE (WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX)
-#define GRP_STYLE (WS_CHILD | WS_VISIBLE | BS_GROUPBOX | WS_GROUP)
-#define CB3_STYLE (WS_CHILD | WS_VISIBLE | BS_AUTO3STATE)
-
-#define WND_WIDTH 512
-#define WND_HEIGHT 758
-
-#define IS_CHECKED(chkbox) (SendMessageW(chkbox, BM_GETCHECK, 0, 0) == BST_CHECKED)
-#define SET_CHECKED(chkbox, checked) SendMessageW(chkbox, BM_SETCHECK, (checked) ? BST_CHECKED : BST_UNCHECKED, 0)
-#define GET_3STATE(chkbox) ((unsigned int)SendMessageW(chkbox, BM_GETCHECK, 0, 0))
-#define SET_3STATE(chkbox, state) SendMessageW(chkbox, BM_SETCHECK, (state), 0)
-
-enum
-{
-    ID_BROWSE = 1,
-    ID_RANDOMIZE,
-    ID_SKILLSETS,
-    ID_STATS,
-    ID_TYPES,
-    ID_TRAINERS,
-    ID_COMPAT,
-    ID_ABILITIES,
-    ID_GENERATE,
-    ID_SKILL_ELEMENT,
-    ID_SKILL_POWER,
-    ID_SKILL_ACC,
-    ID_SKILL_SP,
-    ID_SKILL_PRIO,
-    ID_SKILL_TYPE,
-    ID_ENCOUNTERS,
-    //ID_ENCOUNTER_RATE,
-    ID_USE_QUOTA,
-    ID_SKILLCARDS,
-    ID_TRUE_RAND_STATS,
-    ID_PREFER_SAME,
-    ID_HEALTHY,
-    ID_TRUE_RAND_SKILLS,
-    ID_STARTING_MOVE,
-    ID_SHARE_GEN,
-    ID_SHARE_LOAD,
-    ID_STAT_SCALING,
-    ID_STRICT_TRAINERS,
-    ID_COST
-};
-
 static const int g_cost_exp_modifiers[] = {70, 85, 100, 115, 130};
 static const int g_cost_exp_modifiers_ynk[] = {85, 92, 100, 107, 115};
 static const unsigned int g_sign_skills[] = {127, 179, 233, 273, 327, 375, 421, 474, 524, 566, 623, 680, 741, 782, 817};
 
-inline bool is_sign_skill(unsigned int id)
+static inline bool is_sign_skill(unsigned int id)
 {
     for(auto i : g_sign_skills)
         if(id == i)
@@ -122,313 +65,6 @@ void subtract_set(std::set<T>& s1, const std::set<T>& s2)
 {
     for(auto i : s2)
         s1.erase(i);
-}
-
-static std::wstring get_window_text(HWND hwnd)
-{
-    int len = GetWindowTextLengthW(hwnd);
-    if(!len)
-        return std::wstring();
-
-    len += 1; // make room for null terminator
-
-    wchar_t *buf = new wchar_t[len];
-    memset(buf, 0, len * sizeof(wchar_t));
-
-    GetWindowTextW(hwnd, buf, len);
-    std::wstring ret = buf;
-    delete[] buf;
-    return ret;
-}
-
-static void set_window_text(HWND hwnd, const wchar_t *str)
-{
-    SetWindowTextW(hwnd, str);
-}
-
-static unsigned long stoul_nothrow(const std::wstring& str, int base = 10)
-{
-    try
-    {
-        return std::stoul(str, NULL, base);
-    }
-    catch(const std::exception&)
-    {
-        return 0;
-    }
-}
-
-static long stol_nothrow(const std::wstring& str, int base = 10)
-{
-    try
-    {
-        return std::stol(str, NULL, base);
-    }
-    catch(const std::exception&)
-    {
-        return 0;
-    }
-}
-
-static int get_window_int(HWND hwnd, int base = 10)
-{
-    return stol_nothrow(get_window_text(hwnd), base);
-}
-
-static unsigned int get_window_uint(HWND hwnd, int base = 10)
-{
-    return stoul_nothrow(get_window_text(hwnd), base);
-}
-
-/* this method encodes BITS
- * encoding signed integers is inefficient and unreliable 
- * signed integers must be decoded as a data type of the same width
- * as it was encoded with (no sign extension is performed by the decoder)
- * 
- * this is intended to serialize integers into a short text form,
- * not to transport arbitrary binary data. */
-template<typename T>
-std::wstring base64_encode(const T& val)
-{
-    const wchar_t *chars = L"0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz-=";
-    std::wstring ret;
-    std::make_unsigned_t<T> bits = val;
-
-    do
-    {
-        ret.insert(ret.begin(), chars[bits & 63]);
-    } while(bits >>= 6);
-
-    return ret;
-}
-
-template<typename T = unsigned int>
-T base64_decode(const std::wstring& str)
-{
-    typedef std::make_unsigned_t<T> value_type;
-    const std::wstring chars(L"0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz-=");
-    value_type ret = 0;
-    const auto max_bits = (sizeof(value_type) * 8U);
-
-    if(str.empty())
-        throw std::invalid_argument("Invalid Base64 sequence");
-
-    /* we don't care about performance, just use the easiest implementation */
-    unsigned int pos = 0;
-    for(auto it = str.crbegin(); it != str.crend(); ++it)
-    {
-        auto val = chars.find(*it);
-        if(val == std::wstring::npos)
-            throw std::invalid_argument("Invalid Base64 sequence");
-
-        auto bits = (6U * (pos + 1U));
-
-        /* throw if the encoded value is too large for our data type */
-        if(bits > max_bits)
-        {
-            auto diff = (bits - max_bits);
-
-            /* throw if we have too many digits */
-            if(diff >= 6)
-                throw std::out_of_range("Encoded Base64 value too large for target data type");
-
-            /* since each digit encodes 6 bits, there will be a case where an extra digit is required
-             * to represent less than 6 bits of the most significant byte.
-             * throw if any of the extra bits are set (i.e. conversion would truncate). */
-            if(val >> (6 - diff))
-                throw std::out_of_range("Encoded Base64 value too large for target data type");
-        }
-
-        ret |= ((value_type)val << (6 * pos++));
-    }
-
-    return ret;
-}
-
-LRESULT CALLBACK Randomizer::WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
-{
-    switch(msg)
-    {
-    case WM_COMMAND:
-        if(HIWORD(wParam) == BN_CLICKED)
-        {
-            Randomizer *rnd = (Randomizer*)GetWindowLongPtrW(hwnd, GWLP_USERDATA);
-            switch(LOWORD(wParam))
-            {
-            case ID_GENERATE:
-                {
-                    rnd->generate_seed();
-                }
-                break;
-            case ID_BROWSE:
-                {
-                    wchar_t buf[MAX_PATH] = {0};
-                    BROWSEINFOW bi = {0};
-                    bi.hwndOwner = hwnd;
-                    bi.pszDisplayName = buf;
-                    bi.lpszTitle = L"Select Game Folder";
-                    bi.ulFlags = BIF_USENEWUI;
-
-                    PIDLIST_ABSOLUTE pl = SHBrowseForFolderW(&bi);
-                    if(!pl)
-                        break;
-
-                    SHGetPathFromIDListW(pl, buf);
-                    CoTaskMemFree(pl);
-                    set_window_text(rnd->wnd_dir_, buf);
-                }
-                break;
-            case ID_RANDOMIZE:
-                if(MessageBoxW(hwnd, L"This will permanently modify game files.\r\nIf you have not backed up your game folder, you may wish to do so now.\r\n"
-                                     "Also note that randomization is cumulative. Re-randomizing the same game data may have unexpected results.",
-                                     L"Notice", MB_OKCANCEL | MB_ICONINFORMATION) != IDOK)
-                    break;
-
-                try
-                {
-					if(rnd->randomize())
-					{
-						rnd->set_progress_bar(100);
-						MessageBoxW(hwnd, L"Complete!", L"Success", MB_OK);
-					}
-					else
-						MessageBoxW(hwnd, L"An error occurred, randomization aborted", L"Error", MB_OK);
-                }
-                catch(const std::exception& ex)
-                {
-					rnd->error(utf_widen(ex.what()));
-                }
-
-                rnd->set_progress_bar(0);
-                rnd->clear();
-                break;
-            case ID_STATS:
-                if(!IS_CHECKED(rnd->cb_stats_))
-                {
-                    SET_CHECKED(rnd->cb_true_rand_stats_, false);
-                    SET_CHECKED(rnd->cb_use_quota_, false);
-                    EnableWindow(rnd->wnd_quota_, false);
-                    EnableWindow(rnd->wnd_stat_ratio_, false);
-                    SET_CHECKED(rnd->cb_proportional_stats_, false);
-                }
-                break;
-            case ID_USE_QUOTA:
-                {
-                    bool checked = IS_CHECKED(rnd->cb_use_quota_);
-                    EnableWindow(rnd->wnd_quota_, checked);
-                    if(checked)
-                    {
-                        SET_CHECKED(rnd->cb_stats_, true);
-                        SET_CHECKED(rnd->cb_true_rand_stats_, false);
-                        SET_CHECKED(rnd->cb_proportional_stats_, false);
-                        EnableWindow(rnd->wnd_stat_ratio_, false);
-                    }
-                }
-                break;
-            case ID_TRUE_RAND_STATS:
-                {
-                    bool checked = IS_CHECKED(rnd->cb_true_rand_stats_);
-                    if(checked)
-                    {
-                        SET_CHECKED(rnd->cb_stats_, true);
-                        EnableWindow(rnd->wnd_quota_, false);
-                        EnableWindow(rnd->wnd_stat_ratio_, false);
-                        SET_CHECKED(rnd->cb_use_quota_, false);
-                        SET_CHECKED(rnd->cb_proportional_stats_, false);
-                    }
-                }
-                break;
-            case ID_PREFER_SAME:
-                if(IS_CHECKED(rnd->cb_prefer_same_type_))
-                    SET_CHECKED(rnd->cb_skills_, true);
-                break;
-            case ID_HEALTHY:
-                if(IS_CHECKED(rnd->cb_healthy_))
-                    SET_CHECKED(rnd->cb_abilities_, true);
-                break;
-            case ID_ABILITIES:
-                if(!IS_CHECKED(rnd->cb_abilities_))
-                    SET_CHECKED(rnd->cb_healthy_, false);
-                break;
-            case ID_SKILLSETS:
-                if(!IS_CHECKED(rnd->cb_skills_))
-                {
-                    SET_CHECKED(rnd->cb_prefer_same_type_, false);
-                    SET_CHECKED(rnd->cb_true_rand_skills_, false);
-                    SET_CHECKED(rnd->cb_starting_move_, false);
-                }
-                break;
-            case ID_TRUE_RAND_SKILLS:
-                if(IS_CHECKED(rnd->cb_true_rand_skills_))
-                {
-                    SET_CHECKED(rnd->cb_skills_, true);
-                }
-                break;
-            case ID_STARTING_MOVE:
-                if(GET_3STATE(rnd->cb_starting_move_))
-                {
-                    SET_CHECKED(rnd->cb_skills_, true);
-                }
-                break;
-            case ID_SHARE_GEN:
-                rnd->generate_share_code();
-                break;
-            case ID_SHARE_LOAD:
-                rnd->load_share_code();
-                break;
-            case ID_STAT_SCALING:
-                {
-                    bool checked = IS_CHECKED(rnd->cb_proportional_stats_);
-                    EnableWindow(rnd->wnd_stat_ratio_, checked);
-                    if(checked)
-                    {
-                        SET_CHECKED(rnd->cb_stats_, true);
-                        EnableWindow(rnd->wnd_quota_, false);
-                        SET_CHECKED(rnd->cb_use_quota_, false);
-                        SET_CHECKED(rnd->cb_true_rand_stats_, false);
-                    }
-                }
-                break;
-            default:
-                break;
-            }
-        }
-        break;
-    case WM_DESTROY:
-        PostQuitMessage(0);
-        break;
-    default:
-        break;
-    }
-
-    return DefWindowProcW(hwnd, msg, wParam, lParam);
-}
-
-BOOL CALLBACK set_font(HWND hwnd, LPARAM lparam)
-{
-    SendMessageW(hwnd, WM_SETFONT, (WPARAM)lparam, TRUE);
-    return TRUE;
-}
-
-HWND Randomizer::set_tooltip(HWND control, wchar_t *msg)
-{
-    HWND tip = CreateWindowExW(NULL, TOOLTIPS_CLASSW,
-                NULL, WS_POPUP | TTS_ALWAYSTIP | TTS_USEVISUALSTYLE,
-                CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT,
-                CW_USEDEFAULT, hwnd_, NULL, hInstance_, NULL);
-
-    TOOLINFOW ti = {0};
-    ti.cbSize = sizeof(ti);
-    ti.hwnd = hwnd_;
-    ti.uFlags = TTF_IDISHWND | TTF_SUBCLASS;
-    ti.uId = (UINT_PTR)control;
-    ti.hinst = hInstance_;
-    ti.lpszText = msg;
-    SendMessageW(tip, TTM_ADDTOOLW, 0, (LPARAM)&ti);
-    SendMessageW(tip, TTM_SETMAXTIPWIDTH, 0, 400);
-    SendMessageW(tip, TTM_SETDELAYTIME, TTDT_AUTOPOP, 30 * 1000);
-
-    return tip;
 }
 
 void Randomizer::export_locations(const std::wstring& filepath)
@@ -570,59 +206,12 @@ bool Randomizer::save_archive(Archive & arc, const std::wstring & path)
 
 void Randomizer::set_progress_bar(int percent)
 {
-    SendMessageW(progress_bar_, PBM_SETPOS, percent, 0);
+    gui_->set_progress_bar(percent);
 }
 
 void Randomizer::increment_progress_bar()
 {
-    SendMessageW(progress_bar_, PBM_STEPIT, 0, 0);
-}
-
-void Randomizer::get_child_rect(HWND hwnd, RECT& rect)
-{
-    POINT tl, br;
-    GetWindowRect(hwnd, &rect);
-
-    tl.x = rect.left;
-    tl.y = rect.top;
-    br.x = rect.right;
-    br.y = rect.bottom;
-
-    ScreenToClient(hwnd_, &tl);
-    ScreenToClient(hwnd_, &br);
-
-    rect.left = tl.x;
-    rect.top = tl.y;
-    rect.right = br.x;
-    rect.bottom = br.y;
-}
-
-int Randomizer::get_child_x(HWND hwnd)
-{
-    RECT rect;
-    get_child_rect(hwnd, rect);
-    return rect.left;
-}
-
-int Randomizer::get_child_y(HWND hwnd)
-{
-    RECT rect;
-    get_child_rect(hwnd, rect);
-    return rect.top;
-}
-
-int Randomizer::get_child_bottom(HWND hwnd)
-{
-    RECT rect;
-    get_child_rect(hwnd, rect);
-    return rect.bottom;
-}
-
-int Randomizer::get_child_right(HWND hwnd)
-{
-    RECT rect;
-    get_child_rect(hwnd, rect);
-    return rect.right;
+    gui_->increment_progress_bar();
 }
 
 /* detect valid puppet/skill/etc IDs from the game data.
@@ -1052,7 +641,7 @@ bool Randomizer::randomize_puppets(Archive& archive)
                     for(auto it = skill_deck.begin(); it != skill_deck.end(); ++it)
                     {
                         auto e = skills_[*it].element;
-                        if((skills_[*it].type != SKILL_TYPE_STATUS) && (skills_[*it].power > 0) && ((rand_starting_move_ != BST_CHECKED) || (e == style.element1) || (e == style.element2)))
+                        if((skills_[*it].type != SKILL_TYPE_STATUS) && (skills_[*it].power > 0) && ((rand_starting_move_ != 1) || (e == style.element1) || (e == style.element2)))
                         {
                             style.style_skills[0] = *it;
                             skill_deck.erase(it);
@@ -1622,7 +1211,7 @@ void Randomizer::randomize_mad_file(void *data)
 	/* encounter randomization */
 	if(rand_encounters_)
 	{
-		if(rand_encounters_ == BST_CHECKED)
+		if(rand_encounters_ == 1)
 		{
 			/* since there's no way to tell what areas have what type of grass,
 			 * we won't add any puppets to any grass type if we don't find some there already */
@@ -1888,436 +1477,9 @@ bool Randomizer::parse_puppet_names(Archive& archive)
     return true;
 }
 
-void Randomizer::generate_seed()
-{
-    std::random_device rdev;
-    unsigned int seed = rdev();
-    set_window_text(wnd_seed_, std::to_wstring(seed).c_str());
-}
-
-/* serialize the randomization settings into a text string */
-void Randomizer::generate_share_code()
-{
-    unsigned int bitfield = 0;
-
-    assert((sizeof(bitfield) * 8) >= (checkboxes_.size() + (checkboxes_3state_.size() * 2)));
-
-    for(std::size_t i = 0; i < checkboxes_.size(); ++i)
-    {
-        if(IS_CHECKED(checkboxes_[i]))
-            bitfield |= (1U << i);
-    }
-
-    for(std::size_t i = 0; i < checkboxes_3state_.size(); ++i)
-        bitfield |= (GET_3STATE(checkboxes_3state_[i]) << (checkboxes_.size() + (i * 2)));
-
-    if(!validate())
-        return;
-
-    unsigned int seed = get_window_uint(wnd_seed_);
-    unsigned int lvl_mod = get_window_uint(wnd_lvladjust_);
-    unsigned int quota = get_window_uint(wnd_quota_);
-    unsigned int sc_chance = get_window_uint(wnd_sc_chance_);
-    unsigned int item_chance = get_window_uint(wnd_item_chance_);
-    unsigned int stat_variance = get_window_uint(wnd_stat_ratio_);
-
-    if(item_chance > 100)
-        item_chance = 100;
-
-    if(sc_chance > 100)
-        sc_chance = 100;
-
-    bool sc_shuffle = get_window_text(wnd_sc_chance_).empty();
-
-    if(!sc_shuffle)
-    {
-        if(!validate_uint_window(wnd_sc_chance_, L"Skillcard Chance"))
-            return;
-    }
-
-    std::wstring code = base64_encode(VERSION_INT) + L':' +
-                        base64_encode(bitfield) + L':' +
-                        base64_encode(seed) + L':' +
-                        base64_encode(lvl_mod) + L':' +
-                        base64_encode(quota) + L':' +
-                        (sc_shuffle ? L"" : base64_encode(sc_chance)) + L':' +
-                        base64_encode(item_chance) + L':' +
-                        base64_encode(stat_variance);
-
-    set_window_text(wnd_share_, code.c_str());
-}
-
-bool Randomizer::load_share_code()
-{
-    try
-    {
-        auto code = get_window_text(wnd_share_);
-        std::vector<std::wstring> code_segs;
-
-        /* strip all whitespace */
-        for(auto it = code.begin(); it != code.end();)
-        {
-            if(iswspace(*it))
-                it = code.erase(it);
-            else
-                ++it;
-        }
-
-        auto pos = code.find(L':');
-        if(pos == std::wstring::npos)
-            throw std::exception();
-
-        auto ver = base64_decode(code.substr(0, pos));
-        if((ver >= MAKE_VERSION(1, 0, 8)) && (ver != VERSION_INT))
-        {
-            std::wstring version_string;
-            version_string += std::to_wstring((uint8_t)(ver >> 16));
-            version_string += L'.';
-            version_string += std::to_wstring((uint8_t)(ver >> 8));
-            version_string += L'.';
-            version_string += std::to_wstring((uint8_t)ver);
-
-            if(!msg_yesno(L"This code appears to be for a different version of the randomizer and may not work as expected.\r\n"
-                           "The encoded version number appears to be: \"" + version_string + L"\"\r\n"
-                           "If you really want to use it, check for a matching version of the randomizer from https://github.com/php42/tpdp-randomizer/releases\r\n"
-                           "Would you like to try to load this code anyway?"))
-                return false;
-        }
-        else if((ver == 0) && (ver != VERSION_INT))
-        {
-            if(!msg_yesno(L"This code looks like it's from a beta or git build of the randomizer and may not work as expected.\r\n"
-                           "Would you like to try to load this code anyway?"))
-                return false;
-        }
-        else if(ver != VERSION_INT)
-            throw std::exception();
-
-        ++pos;
-        for(;;)
-        {
-            auto endpos = code.find(L':', pos);
-
-            code_segs.push_back(code.substr(pos, endpos - pos));
-
-            if(endpos >= code.size())
-                break;
-            pos = endpos + 1;
-        }
-
-        bool sc_shuffle = code_segs.at(4).empty();
-
-        auto bitfield = base64_decode(code_segs.at(0));
-        auto seed = base64_decode(code_segs.at(1));
-        auto lvl_mod = base64_decode(code_segs.at(2));
-        auto quota = base64_decode(code_segs.at(3));
-        auto sc_chance = (sc_shuffle ? 0u : base64_decode(code_segs.at(4)));
-        auto item_chance = base64_decode(code_segs.at(5));
-        auto stat_variance = base64_decode(code_segs.at(6));
-
-        assert((sizeof(bitfield) * 8) >= (checkboxes_.size() + (checkboxes_3state_.size() * 2)));
-
-        for(std::size_t i = 0; i < checkboxes_.size(); ++i)
-        {
-            SET_CHECKED(checkboxes_[i], (bitfield & (1U << i)));
-        }
-
-        for(std::size_t i = 0; i < checkboxes_3state_.size(); ++i)
-        {
-            auto state = ((bitfield >> (checkboxes_.size() + (i * 2))) & 3);
-            if(state > 2)
-                throw std::exception();
-
-            SET_3STATE(checkboxes_3state_[i], state);
-        }
-
-        /* manually generate button click notifications so our wndproc gets called */
-        for(auto i : checkboxes_)
-            SendMessageW(hwnd_, WM_COMMAND, MAKEWPARAM(GetDlgCtrlID(i), BN_CLICKED), (LPARAM)i);
-        for(auto i : checkboxes_3state_)
-            SendMessageW(hwnd_, WM_COMMAND, MAKEWPARAM(GetDlgCtrlID(i), BN_CLICKED), (LPARAM)i);
-
-        set_window_text(wnd_seed_, std::to_wstring(seed).c_str());
-        set_window_text(wnd_lvladjust_, std::to_wstring(lvl_mod).c_str());
-        set_window_text(wnd_quota_, std::to_wstring(quota).c_str());
-        set_window_text(wnd_item_chance_, std::to_wstring(item_chance).c_str());
-        set_window_text(wnd_stat_ratio_, std::to_wstring(stat_variance).c_str());
-
-        if(code_segs.at(4).empty())
-            set_window_text(wnd_sc_chance_, L"");
-        else
-            set_window_text(wnd_sc_chance_, std::to_wstring(sc_chance).c_str());
-
-        return true;
-    }
-    catch(const std::exception&)
-    {
-        error(L"Invalid share code.");
-        return false;
-    }
-}
-
-bool Randomizer::validate()
-{
-    if(!validate_uint_window(wnd_seed_, L"Seed") ||
-       !validate_uint_window(wnd_lvladjust_, L"Level adjustment") ||
-       !validate_uint_window(wnd_quota_, L"Quota") ||
-       !validate_uint_window(wnd_item_chance_, L"Item Chance") ||
-       !validate_uint_window(wnd_stat_ratio_, L"Stat ratio") ||
-       (!get_window_text(wnd_sc_chance_).empty() && !validate_uint_window(wnd_sc_chance_, L"Skillcard chance")))
-    {
-        return false;
-    }
-
-    if(get_window_uint(wnd_lvladjust_) <= 0)
-    {
-        error(L"Invalid trainer level modifier. Must be an integer greater than zero");
-        return false;
-    }
-
-    auto stat_quota = get_window_uint(wnd_quota_);
-    if(stat_quota <= 0)
-    {
-        error(L"Stat quota must be an integer greater than zero.");
-        return false;
-    }
-    else if(stat_quota > (0xFF * 6))
-    {
-        error(L"Stat quota too large! Maximum quota is 1530.");
-        return false;
-    }
-
-    return true;
-}
-
-bool Randomizer::validate_uint_window(HWND hwnd, const std::wstring& name)
-{
-    auto str = get_window_text(hwnd);
-    for(auto it : str)
-    {
-        if(!iswdigit(it))
-        {
-            error(name + L" must contain only digits");
-            return false;
-        }
-    }
-
-    try
-    {
-        /* volatile so the compiler doesn't optimize the entire call away (unlikely but possible?) */
-        volatile auto unused = std::stoul(str);
-    }
-    catch(const std::out_of_range&)
-    {
-        error(name + L" value too large!\r\nValues must be less than 2^32");
-        return false;
-    }
-    catch(const std::exception&)
-    {
-        error(L"Invalid " + name + L" value.");
-        return false;
-    }
-
-    return true;
-}
-
-/* raw winapi so we don't have any dependencies */
-/* FIXME: there's probably a way to do all this with resource files or something
- * I'm not experienced enough with Windows GUI stuff to know how this is normally done */
-Randomizer::Randomizer(HINSTANCE hInstance)
-{
-    hInstance_ = hInstance;
-    RECT rect, pos;
-
-    SystemParametersInfoW(SPI_GETWORKAREA, 0, &rect, 0);
-
-    hwnd_ = CreateWindowW(L"MainWindow", L"TPDP Randomizer "  VERSION_STRING, MW_STYLE, (rect.right - WND_WIDTH) / 2, (rect.bottom - WND_HEIGHT) / 2, WND_WIDTH, WND_HEIGHT, NULL, NULL, hInstance, NULL);
-    if(hwnd_ == NULL)
-        abort();
-
-    SetWindowLongPtrW(hwnd_, GWLP_USERDATA, (LONG_PTR)this);
-
-    GetClientRect(hwnd_, &rect);
-
-    /* [spaghetti code intensifies] */
-    /* FIXME: replace with wxWidgets or something, not worth doing it this way anymore */
-
-    grp_dir_ = CreateWindowW(L"Button", L"Game Folder", GRP_STYLE, 10, 10, rect.right - 20, 55, hwnd_, NULL, hInstance, NULL);
-    grp_rand_ = CreateWindowW(L"Button", L"Randomization", GRP_STYLE, 10, get_child_bottom(grp_dir_) + 10, rect.right - 20, 245, hwnd_, NULL, hInstance, NULL);
-    grp_other_ = CreateWindowW(L"Button", L"Other", GRP_STYLE, 10, get_child_bottom(grp_rand_) + 10, rect.right - 20, 188, hwnd_, NULL, hInstance, NULL);
-    grp_seed_ = CreateWindowW(L"Button", L"Seed", GRP_STYLE, 10, get_child_bottom(grp_other_) + 10, rect.right - 20, 55, hwnd_, NULL, hInstance, NULL);
-    grp_share_ = CreateWindowW(L"Button", L"Share Code", GRP_STYLE, 10, get_child_bottom(grp_seed_) + 10, rect.right - 20, 55, hwnd_, NULL, hInstance, NULL);
-    bn_Randomize_ = CreateWindowW(L"Button", L"Randomize", WS_CHILD | WS_VISIBLE | BS_DEFPUSHBUTTON, (rect.right / 2) - 50, get_child_bottom(grp_share_) + 10, 100, 30, hwnd_, (HMENU)ID_RANDOMIZE, hInstance, NULL);
-    progress_bar_ = CreateWindowW(PROGRESS_CLASSW, NULL, WS_CHILD | WS_VISIBLE, 10, rect.bottom - 30, rect.right - 20, 20, hwnd_, NULL, hInstance, NULL);
-    SendMessageW(progress_bar_, PBM_SETSTEP, 1, 0);
-
-    GetClientRect(grp_dir_, &rect);
-    get_child_rect(grp_dir_, pos);
-    wnd_dir_ = CreateWindowExW(WS_EX_CLIENTEDGE, L"Edit", L"C:\\game\\FocasLens\\幻想人形演舞", WS_CHILD | WS_VISIBLE | ES_AUTOHSCROLL, pos.left + 10, pos.top + 20, rect.right - 90, 25, hwnd_, NULL, hInstance, NULL);
-    bn_browse_ = CreateWindowW(L"Button", L"Browse", WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON, pos.right - 75, pos.top + 18, 65, 29, hwnd_, (HMENU)ID_BROWSE, hInstance, NULL);
-
-    GetClientRect(grp_other_, &rect);
-    get_child_rect(grp_other_, pos);
-    wnd_lvladjust_ = CreateWindowExW(WS_EX_CLIENTEDGE, L"Edit", L"100", WS_CHILD | WS_VISIBLE | ES_NUMBER | ES_AUTOHSCROLL, pos.left + 10, pos.top + 20, 50, 23, hwnd_, NULL, hInstance, NULL);
-    tx_lvladjust_ = CreateWindowW(L"Static", L"% Enemy level adjustment", WS_CHILD | WS_VISIBLE | SS_WORDELLIPSIS, get_child_right(wnd_lvladjust_) + 5, pos.top + 22, (rect.right / 2) - 75, 23, hwnd_, NULL, hInstance, NULL);
-    cb_trainer_party_ = CreateWindowW(L"Button", L"Full trainer party", CB_STYLE, (rect.right / 2) + pos.left + 10, pos.top + 23, (rect.right / 2) - 25, 15, hwnd_, NULL, hInstance, NULL);
-    cb_export_locations_ = CreateWindowW(L"Button", L"Export catch locations", CB_STYLE, pos.left + 10, pos.top + 55, (rect.right / 2) - 25, 15, hwnd_, NULL, hInstance, NULL);
-    wnd_quota_ = CreateWindowExW(WS_EX_CLIENTEDGE, L"Edit", L"500", WS_CHILD | WS_VISIBLE | ES_NUMBER | WS_DISABLED | ES_AUTOHSCROLL, (rect.right / 2) + pos.left + 10, pos.top + 53, 50, 23, hwnd_, NULL, hInstance, NULL);
-    tx_quota_ = CreateWindowW(L"Static", L"Stat quota", WS_CHILD | WS_VISIBLE | SS_WORDELLIPSIS, (rect.right / 2) + pos.left + 65, pos.top + 55, (rect.right / 2) - 75, 23, hwnd_, NULL, hInstance, NULL);
-    cb_healthy_ = CreateWindowW(L"Button", L"Healthy", CB_STYLE, pos.left + 10, pos.top + 87, (rect.right / 2) - 25, 15, hwnd_, (HMENU)ID_HEALTHY, hInstance, NULL);
-    cb_export_puppets_ = CreateWindowW(L"Button", L"Dump puppet stats", CB_STYLE, (rect.right / 2) + pos.left + 10, pos.top + 87, (rect.right / 2) - 25, 15, hwnd_, NULL, hInstance, NULL);
-    cb_strict_trainers_ = CreateWindowW(L"Button", L"Strict trainers", CB_STYLE, pos.left + 10, pos.top + 120, (rect.right / 2) - 25, 15, hwnd_, (HMENU)ID_STRICT_TRAINERS, hInstance, NULL);
-    wnd_sc_chance_ = CreateWindowExW(WS_EX_CLIENTEDGE, L"Edit", L"", WS_CHILD | WS_VISIBLE | ES_NUMBER | ES_AUTOHSCROLL, (rect.right / 2) + pos.left + 10, pos.top + 119, 50, 23, hwnd_, NULL, hInstance, NULL);
-    tx_sc_chance_ = CreateWindowW(L"Static", L"% Trainer skillcard chance", WS_CHILD | WS_VISIBLE | SS_WORDELLIPSIS, (rect.right / 2) + pos.left + 65, pos.top + 121, (rect.right / 2) - 75, 23, hwnd_, NULL, hInstance, NULL);
-    wnd_item_chance_ = CreateWindowExW(WS_EX_CLIENTEDGE, L"Edit", L"25", WS_CHILD | WS_VISIBLE | ES_NUMBER | ES_AUTOHSCROLL, pos.left + 10, pos.top + 152, 50, 23, hwnd_, NULL, hInstance, NULL);
-    tx_item_chance_ = CreateWindowW(L"Static", L"% Trainer item chance", WS_CHILD | WS_VISIBLE | SS_WORDELLIPSIS, pos.left + 65, pos.top + 154, (rect.right / 2) - 75, 23, hwnd_, NULL, hInstance, NULL);
-    wnd_stat_ratio_ = CreateWindowExW(WS_EX_CLIENTEDGE, L"Edit", L"25", WS_CHILD | WS_VISIBLE | ES_NUMBER | ES_AUTOHSCROLL | WS_DISABLED, (rect.right / 2) + pos.left + 10, pos.top + 152, 50, 23, hwnd_, NULL, hInstance, NULL);
-    tx_stat_ratio_ = CreateWindowW(L"Static", L"% Stat ratio", WS_CHILD | WS_VISIBLE | SS_WORDELLIPSIS, (rect.right / 2) + pos.left + 65, pos.top + 154, (rect.right / 2) - 75, 23, hwnd_, NULL, hInstance, NULL);
-
-    GetClientRect(grp_seed_, &rect);
-    get_child_rect(grp_seed_, pos);
-    wnd_seed_ = CreateWindowExW(WS_EX_CLIENTEDGE, L"Edit", L"0", WS_CHILD | WS_VISIBLE | ES_NUMBER | ES_AUTOHSCROLL, pos.left + 10, pos.top + 20, rect.right - 125, 25, hwnd_, NULL, hInstance, NULL);
-    bn_generate_ = CreateWindowW(L"Button", L"Generate", WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON, pos.left + (rect.right - 110), pos.top + 18, 100, 29, hwnd_, (HMENU)ID_GENERATE, hInstance, NULL);
-    generate_seed();
-
-    GetClientRect(grp_share_, &rect);
-    get_child_rect(grp_share_, pos);
-    wnd_share_ = CreateWindowExW(WS_EX_CLIENTEDGE, L"Edit", L"", WS_CHILD | WS_VISIBLE | ES_AUTOHSCROLL, pos.left + 10, pos.top + 20, rect.right - 195, 25, hwnd_, NULL, hInstance, NULL);
-    bn_share_gen_ = CreateWindowW(L"Button", L"Generate", WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON, pos.left + (rect.right - 175), pos.top + 18, 80, 29, hwnd_, (HMENU)ID_SHARE_GEN, hInstance, NULL);
-    bn_share_load_ = CreateWindowW(L"Button", L"Load", WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON, pos.left + (rect.right - 90), pos.top + 18, 80, 29, hwnd_, (HMENU)ID_SHARE_LOAD, hInstance, NULL);
-
-    GetClientRect(grp_rand_, &rect);
-    get_child_rect(grp_rand_, pos);
-    int x = pos.left + 15;
-    int y = pos.top + 30;
-    int width = rect.right - 30;
-    int height = rect.bottom - 60;
-    int width_cb = (width / 3) - 5;
-    cb_abilities_ = CreateWindowW(L"Button", L"Puppet Abilities", CB_STYLE, x, y, width_cb, 15, hwnd_, (HMENU)ID_ABILITIES, hInstance, NULL);
-    cb_skills_ = CreateWindowW(L"Button", L"Skillsets", CB_STYLE, (width / 3) + x, y, width_cb, 15, hwnd_, (HMENU)ID_SKILLSETS, hInstance, NULL);
-    cb_stats_ = CreateWindowW(L"Button", L"Base Stats", CB_STYLE, ((width / 3) * 2) + x, y, width_cb, 15, hwnd_, (HMENU)ID_STATS, hInstance, NULL);
-    cb_types_ = CreateWindowW(L"Button", L"Puppet Types", CB_STYLE, x, y + 30, width_cb, 15, hwnd_, (HMENU)ID_TYPES, hInstance, NULL);
-    cb_trainers_ = CreateWindowW(L"Button", L"Trainers", CB_STYLE, (width / 3) + x, y + 30, width_cb, 15, hwnd_, (HMENU)ID_TRAINERS, hInstance, NULL);
-    cb_compat_ = CreateWindowW(L"Button", L"Type Effectiveness", CB_STYLE, ((width / 3) * 2) + x, y + 30, width_cb, 15, hwnd_, (HMENU)ID_COMPAT, hInstance, NULL);
-    cb_skill_element_ = CreateWindowW(L"Button", L"Skill Element", CB_STYLE, x, y + 60, width_cb, 15, hwnd_, (HMENU)ID_SKILL_ELEMENT, hInstance, NULL);
-    cb_skill_power_ = CreateWindowW(L"Button", L"Skill Power", CB_STYLE, x + (width / 3), y + 60, width_cb, 15, hwnd_, (HMENU)ID_SKILL_POWER, hInstance, NULL);
-    cb_skill_acc_ = CreateWindowW(L"Button", L"Skill Accuracy", CB_STYLE, x + ((width / 3) * 2), y + 60, width_cb, 15, hwnd_, (HMENU)ID_SKILL_ACC, hInstance, NULL);
-    cb_skill_sp_ = CreateWindowW(L"Button", L"Skill SP", CB_STYLE, x, y + 90, width_cb, 15, hwnd_, (HMENU)ID_SKILL_SP, hInstance, NULL);
-    cb_skill_prio_ = CreateWindowW(L"Button", L"Skill Priority", CB_STYLE, x + (width / 3), y + 90, width_cb, 15, hwnd_, (HMENU)ID_SKILL_PRIO, hInstance, NULL);
-    cb_skill_type_ = CreateWindowW(L"Button", L"Skill Type", CB_STYLE, x + ((width / 3) * 2), y + 90, width_cb, 15, hwnd_, (HMENU)ID_SKILL_TYPE, hInstance, NULL);
-    cb_encounters_ = CreateWindowW(L"Button", L"Wild Puppets", CB3_STYLE, x, y + 120, width_cb, 15, hwnd_, (HMENU)ID_ENCOUNTERS, hInstance, NULL);
-    //cb_encounter_rates_ = CreateWindowW(L"Button", L"Encounter Rates", CB3_STYLE, x + (width / 3), y + 120, width_cb, 15, hwnd_, (HMENU)ID_ENCOUNTER_RATE, hInstance, NULL);
-	cb_cost_ = CreateWindowW(L"Button", L"Puppet Cost", CB3_STYLE, x + (width / 3), y + 120, width_cb, 15, hwnd_, (HMENU)ID_COST, hInstance, NULL);
-    cb_use_quota_ = CreateWindowW(L"Button", L"Use stat quota", CB_STYLE, x + ((width / 3) * 2), y + 120, width_cb, 15, hwnd_, (HMENU)ID_USE_QUOTA, hInstance, NULL);
-    cb_skillcards_ = CreateWindowW(L"Button", L"Skill Cards", CB3_STYLE, x, y + 150, width_cb, 15, hwnd_, (HMENU)ID_SKILLCARDS, hInstance, NULL);
-    cb_true_rand_stats_ = CreateWindowW(L"Button", L"True random stats", CB_STYLE, x + (width / 3), y + 150, width_cb, 15, hwnd_, (HMENU)ID_TRUE_RAND_STATS, hInstance, NULL);
-    cb_prefer_same_type_ = CreateWindowW(L"Button", L"Prefer STAB moves", CB_STYLE, x + ((width / 3) * 2), y + 150, width_cb, 15, hwnd_, (HMENU)ID_PREFER_SAME, hInstance, NULL);
-    cb_true_rand_skills_ = CreateWindowW(L"Button", L"True random skills", CB_STYLE, x, y + 180, width_cb, 15, hwnd_, (HMENU)ID_TRUE_RAND_SKILLS, hInstance, NULL);
-    cb_starting_move_ = CreateWindowW(L"Button", L"STAB starting move", CB3_STYLE, x + (width / 3), y + 180, width_cb, 15, hwnd_, (HMENU)ID_STARTING_MOVE, hInstance, NULL);
-    cb_proportional_stats_ = CreateWindowW(L"Button", L"Proportional stats", CB_STYLE, x + ((width / 3) * 2), y + 180, width_cb, 15, hwnd_, (HMENU)ID_STAT_SCALING, hInstance, NULL);
-
-    set_tooltip(cb_skills_, L"Randomize the skills each puppet can learn");
-    set_tooltip(cb_stats_, L"Randomize puppet base stats");
-    set_tooltip(cb_types_, L"Randomize puppet typings");
-    set_tooltip(cb_trainers_, L"Randomize trainer puppets");
-    set_tooltip(cb_compat_, L"Randomize how effective each element is against other elements (weighted towards neutral)");
-    set_tooltip(cb_abilities_, L"Randomize the abilities each puppet can have");
-    set_tooltip(wnd_seed_, L"The seed used for randomization (must be an integer).\r\nA given seed will always generate the same result when using the same settings");
-    set_tooltip(cb_skill_element_, L"Randomize skill elements");
-    set_tooltip(cb_skill_power_, L"Randomize skill base power");
-    set_tooltip(cb_skill_acc_, L"Randomize skill accuracy");
-    set_tooltip(cb_skill_sp_, L"Randomize skill SP");
-    set_tooltip(cb_skill_prio_, L"Randomize skill priority");
-    set_tooltip(cb_skill_type_, L"Randomize skill type (focus or spread. does not affect status skills)");
-    set_tooltip(wnd_lvladjust_, L"Trainer puppets and wild puppets will have their level adjusted to the specified percentage\r\n100% = no change");
-    set_tooltip(cb_trainer_party_, L"Trainers will always have 6 puppets.\r\nnew puppets will be randomly generated at the same level as the highest level existing puppet");
-    set_tooltip(cb_encounters_, L"This is a 3-state checkbox. Click twice to get to the \"middle\" state.\r\nChecked: Full randomization.\r\nMiddle: Partial randomization. Encounter rates and number of puppets will not be changed.");
-    //set_tooltip(cb_encounter_rates_, L"This is a 3-state checkbox. Click twice to get to the \"middle\" state.\nChecked: Randomize encounter rates and number of wild puppets in an area.\r\nMiddle: Randomize encounter rates only.");
-    set_tooltip(cb_export_locations_, L"Export the locations where each puppet can be caught in the wild.\r\nThis will be written to catch_locations.txt in the game folder.");
-    set_tooltip(cb_use_quota_, L"When stat randomization is enabled, each puppet will recieve the same total sum of stat points (distributed randomly)\r\nThe number of stat points can be adjusted in the \"Stat quota\" field below");
-    set_tooltip(wnd_quota_, L"When \"Use stat quota\" is enabled, this number dictates the total sum of stat points each puppet recieves");
-    set_tooltip(cb_healthy_, L"Remove \"Frail Health\" from the ability pool");
-    set_tooltip(cb_skillcards_, L"This is a 3-state checkbox. Click twice to get to the \"middle\" state.\nChecked: Skill Cards will teach random skills\r\nMiddle: Don't randomize sign skills");
-    set_tooltip(cb_true_rand_stats_, L"Puppet base stats will be completely random");
-    set_tooltip(cb_prefer_same_type_, L"Randomization will favor skills that match a puppets typing");
-    set_tooltip(cb_export_puppets_, L"Write puppet stats/skillsets/etc to puppets.txt in the game folder");
-    set_tooltip(cb_true_rand_skills_, L"Puppet skills are totally random\r\nThe default behaviour preserves the \"move pools\" of puppets, meaning that normal puppets will generally have less powerful moves.\r\nThis option disables that.");
-    set_tooltip(cb_starting_move_, L"This is a 3-state checkbox. Click twice to get to the \"middle\" state.\nChecked: All puppets are guaranteed a damaging same-type starting move (so long as such a move exists in the pool)\r\nMiddle: Guaranteed damaging starting move of any type");
-    set_tooltip(wnd_share_, L"Share codes allow you to easily share your randomization settings and seed with others. Click generate to create a code for your current settings, or paste in a code and click load to apply those settings.");
-    set_tooltip(bn_share_gen_, L"Generate a share code for your current settings and seed");
-    set_tooltip(bn_share_load_, L"Load settings and seed from the supplied share code");
-    set_tooltip(cb_proportional_stats_, L"Generate stats proportional to the puppets original stats.\nAdjust with the \"Stat ratio\" option below.");
-    set_tooltip(cb_strict_trainers_, L"Trainer puppets will not have skills for which they are too low level.\nWhen unchecked, level requirement is ignored and trainer puppets may have any move in their moveset at any level.\nHas no effect on skill card moves.");
-    set_tooltip(wnd_sc_chance_, L"Chance for trainer puppets to have a skill card move (per move slot).\nBlank = shuffle.");
-    set_tooltip(wnd_item_chance_, L"Chance for trainer puppets to have a held item.");
-    set_tooltip(wnd_stat_ratio_, L"Adjust maximum stat variance when using proportional stats.\nA value of 25 allows stats to change up to a maximum of +/- 25% of the original stat.");
-    set_tooltip(cb_cost_, L"This is a 3-state checkbox. Click twice to get to the \"middle\" state.\nChecked: randomized puppet cost\nMiddle: all puppets set to 120 cost");
-
-    NONCLIENTMETRICSW ncm = {0};
-    ncm.cbSize = sizeof(ncm);
-    SystemParametersInfoW(SPI_GETNONCLIENTMETRICS, sizeof(ncm), &ncm, 0);
-    hfont_ = CreateFontIndirectW(&ncm.lfMessageFont);
-
-    EnumChildWindows(hwnd_, set_font, (LPARAM)hfont_);
-
-    checkboxes_.push_back(cb_skills_);
-    checkboxes_.push_back(cb_stats_);
-    checkboxes_.push_back(cb_trainers_);
-    checkboxes_.push_back(cb_types_);
-    checkboxes_.push_back(cb_compat_);
-    checkboxes_.push_back(cb_abilities_);
-    checkboxes_.push_back(cb_trainer_party_);
-    checkboxes_.push_back(cb_export_locations_);
-    checkboxes_.push_back(cb_use_quota_);
-    checkboxes_.push_back(cb_healthy_);
-    checkboxes_.push_back(cb_true_rand_stats_);
-    checkboxes_.push_back(cb_prefer_same_type_);
-    checkboxes_.push_back(cb_export_puppets_);
-    checkboxes_.push_back(cb_true_rand_skills_);
-    checkboxes_.push_back(cb_skill_element_);
-    checkboxes_.push_back(cb_skill_power_);
-    checkboxes_.push_back(cb_skill_acc_);
-    checkboxes_.push_back(cb_skill_sp_);
-    checkboxes_.push_back(cb_skill_prio_);
-    checkboxes_.push_back(cb_skill_type_);
-    checkboxes_.push_back(cb_proportional_stats_);
-    checkboxes_.push_back(cb_strict_trainers_);
-
-    checkboxes_3state_.push_back(cb_cost_);
-    checkboxes_3state_.push_back(cb_encounters_);
-    checkboxes_3state_.push_back(cb_starting_move_);
-	//checkboxes_3state_.push_back(cb_encounter_rates_);
-	checkboxes_3state_.push_back(cb_skillcards_);
-}
-
-Randomizer::~Randomizer()
-{
-    /* since we're only instantiating this once, and it's only destroyed when main returns,
-     * we can just do this */
-    DeleteObject(hfont_);
-}
-
-bool Randomizer::register_window_class(HINSTANCE hInstance)
-{
-    /* just throw this in here since it's part of initialization anyway */
-    INITCOMMONCONTROLSEX icc = {0};
-    icc.dwSize = sizeof(icc);
-    icc.dwICC = ICC_COOL_CLASSES | ICC_BAR_CLASSES | ICC_STANDARD_CLASSES | ICC_WIN95_CLASSES | ICC_PROGRESS_CLASS;
-    InitCommonControlsEx(&icc);
-
-    WNDCLASSW wc = {0};
-    wc.lpszClassName = L"MainWindow";
-    wc.hInstance = hInstance;
-    wc.hbrBackground = GetSysColorBrush(COLOR_3DFACE);
-    wc.lpfnWndProc = WndProc;
-    wc.hCursor = LoadCursor(0, IDC_ARROW);
-
-    return (RegisterClassW(&wc) != 0);
-}
-
-bool Randomizer::randomize()
+bool Randomizer::randomize(const std::wstring& dir, unsigned int seed)
 {
     Archive archive;
-    std::wstring dir = get_window_text(wnd_dir_);
     std::wstring path;
 
     /* here we will store modified files until randomization is complete.
@@ -2332,9 +1494,8 @@ bool Randomizer::randomize()
         return false;
     }
 
-    if(!validate())
-        return false;
-
+    gen_.seed(seed);
+    /*
     rand_trainer_sc_shuffle_ = get_window_text(wnd_sc_chance_).empty();
     stat_ratio_ = get_window_uint(wnd_stat_ratio_);
     level_mod_ = get_window_uint(wnd_lvladjust_);
@@ -2347,8 +1508,6 @@ bool Randomizer::randomize()
     trainer_item_chance_ = get_window_uint(wnd_item_chance_);
     if(trainer_item_chance_ > 100)
         trainer_item_chance_ = 100;
-
-    gen_.seed(get_window_uint(wnd_seed_));
 
     rand_skillsets_ = IS_CHECKED(cb_skills_);
     rand_stats_ = IS_CHECKED(cb_stats_);
@@ -2368,7 +1527,6 @@ bool Randomizer::randomize()
     rand_export_puppets_ = IS_CHECKED(cb_export_puppets_);
     rand_true_rand_skills_ = IS_CHECKED(cb_true_rand_skills_);
     rand_cost_ = GET_3STATE(cb_cost_);
-    rand_puppets_ = rand_skillsets_ || rand_stats_ || rand_types_ || rand_abilities_ || rand_cost_;
     rand_skill_element_ = IS_CHECKED(cb_skill_element_);
     rand_skill_power_ = IS_CHECKED(cb_skill_power_);
     rand_skill_acc_ = IS_CHECKED(cb_skill_acc_);
@@ -2380,7 +1538,9 @@ bool Randomizer::randomize()
     rand_starting_move_ = GET_3STATE(cb_starting_move_);
     rand_stat_scaling_ = IS_CHECKED(cb_proportional_stats_);
     rand_strict_trainers_ = IS_CHECKED(cb_strict_trainers_);
+    */
     rand_skills_ = rand_skill_element_ || rand_skill_power_ || rand_skill_acc_ || rand_skill_sp_ || rand_skill_prio_ || rand_skill_type_;
+    rand_puppets_ = rand_skillsets_ || rand_stats_ || rand_types_ || rand_abilities_ || rand_cost_;
 
     path = dir + L"/dat/gn_dat1.arc";
 
@@ -2508,13 +1668,7 @@ void Randomizer::encrypt_puppet(void *src, const void *rand_data, std::size_t le
 
 void Randomizer::error(const std::wstring& msg)
 {
-    MessageBoxW(hwnd_, msg.c_str(), L"Error", MB_OK | MB_ICONERROR);
-}
-
-bool Randomizer::msg_yesno(const std::wstring& msg)
-{
-    auto ret = MessageBoxW(hwnd_, msg.c_str(), L"Error", MB_YESNO | MB_ICONERROR);
-    return (ret == IDYES);
+    gui_->error(msg.c_str());
 }
 
 unsigned int Randomizer::level_from_exp(const PuppetData& data, unsigned int exp) const

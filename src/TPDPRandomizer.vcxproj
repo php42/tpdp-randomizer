@@ -138,6 +138,7 @@
     <ClCompile Include="archive.cpp" />
     <ClCompile Include="filesystem.cpp" />
     <ClCompile Include="gamedata.cpp" />
+    <ClCompile Include="gui.cpp" />
     <ClCompile Include="randomizer.cpp" />
     <ClCompile Include="puppet.cpp" />
     <ClCompile Include="main.cpp" />
@@ -148,10 +149,15 @@
     <ClInclude Include="containers.h" />
     <ClInclude Include="filesystem.h" />
     <ClInclude Include="gamedata.h" />
+    <ClInclude Include="gui.h" />
     <ClInclude Include="randomizer.h" />
     <ClInclude Include="puppet.h" />
+    <ClInclude Include="resource.h" />
     <ClInclude Include="textconvert.h" />
     <ClInclude Include="endian.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="TPDPRandomizer.rc" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

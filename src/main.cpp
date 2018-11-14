@@ -18,7 +18,8 @@
 #define WIN32_LEAN_AND_MEAN
 #include <Windows.h>
 #include <Ole2.h>
-#include "randomizer.h"
+#include "gui.h"
+#include "textconvert.h"
 
 int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR lpCmdLine, int nCmdShow)
 {
@@ -30,9 +31,9 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR lpCmdLin
         return 0;
     }
 
-    if(Randomizer::register_window_class(hInstance))
+    try
     {
-        Randomizer wnd(hInstance);
+        RandomizerGUI wnd(hInstance);
 
         while(GetMessageW(&msg, NULL, 0, 0))
         {
@@ -40,9 +41,17 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR lpCmdLin
             DispatchMessageW(&msg);
         }
     }
-    else
+    catch(std::exception& ex)
     {
-        MessageBoxW(NULL, L"Failed to register window class", L"Error", MB_OK);
+        MessageBoxW(NULL, utf_widen(ex.what()).c_str(), L"Error", MB_OK);
+        OleUninitialize();
+        return EXIT_FAILURE;
+    }
+    catch(...)
+    {
+        MessageBoxW(NULL, L"Unknown Exception", L"Error", MB_OK);
+        OleUninitialize();
+        return EXIT_FAILURE;
     }
 
     OleUninitialize();

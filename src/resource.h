@@ -40,7 +40,6 @@
 #define IDC_GENERATE_SEED               1038
 #define IDC_SHARE_BOX                   1039
 #define IDC_GENERATE_SHARE              1040
-#define IDC_BUTTON5                     1041
 #define IDC_LOAD_SHARE                  1041
 #define IDC_RANDOMIZE                   1042
 #define IDC_PROG_BAR                    1043
