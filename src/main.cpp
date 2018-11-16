@@ -28,7 +28,7 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR lpCmdLin
     if(!SUCCEEDED(status))
     {
         MessageBoxW(NULL, L"OleInitialize() failed", L"Error", MB_OK);
-        return 0;
+        return EXIT_FAILURE;
     }
 
     try

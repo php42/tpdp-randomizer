@@ -471,6 +471,8 @@ RandomizerGUI::RandomizerGUI(HINSTANCE hInstance)
     set_window_text(wnd_stat_ratio_, L"25");
     set_window_text(wnd_item_chance_, L"25");
 
+    SendMessageW(progress_bar_, PBM_SETSTEP, 1, 0);
+
     set_tooltip(cb_skills_, L"Randomize the skills each puppet can learn");
     set_tooltip(cb_stats_, L"Randomize puppet base stats");
     set_tooltip(cb_types_, L"Randomize puppet typings");

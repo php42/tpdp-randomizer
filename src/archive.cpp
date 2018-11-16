@@ -115,7 +115,7 @@ void Archive::encrypt()
     auto data = data_.get();
     std::size_t pos = 0;
 
-    /* SSE2 acceleration for lulz
+    /* SSE2 acceleration for lulz (no AVX for compatibility reasons)
      * it's kinda wonky but whatever */
 #ifndef ARC_NO_SSE
 
