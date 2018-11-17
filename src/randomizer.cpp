@@ -1495,50 +1495,7 @@ bool Randomizer::randomize(const std::wstring& dir, unsigned int seed)
     }
 
     gen_.seed(seed);
-    /*
-    rand_trainer_sc_shuffle_ = get_window_text(wnd_sc_chance_).empty();
-    stat_ratio_ = get_window_uint(wnd_stat_ratio_);
-    level_mod_ = get_window_uint(wnd_lvladjust_);
-    stat_quota_ = get_window_uint(wnd_quota_);
 
-    trainer_sc_chance_ = get_window_uint(wnd_sc_chance_);
-    if(trainer_sc_chance_ > 100)
-        trainer_sc_chance_ = 100;
-
-    trainer_item_chance_ = get_window_uint(wnd_item_chance_);
-    if(trainer_item_chance_ > 100)
-        trainer_item_chance_ = 100;
-
-    rand_skillsets_ = IS_CHECKED(cb_skills_);
-    rand_stats_ = IS_CHECKED(cb_stats_);
-    rand_trainers_ = IS_CHECKED(cb_trainers_);
-    rand_types_ = IS_CHECKED(cb_types_);
-    rand_compat_ = IS_CHECKED(cb_compat_);
-    rand_abilities_ = IS_CHECKED(cb_abilities_);
-    rand_full_party_ = IS_CHECKED(cb_trainer_party_);
-    rand_encounters_ = GET_3STATE(cb_encounters_);
-    //rand_encounter_rates_ = GET_3STATE(cb_encounter_rates_);
-    rand_export_locations_ = IS_CHECKED(cb_export_locations_);
-    rand_quota_ = IS_CHECKED(cb_use_quota_);
-    rand_healthy_ = IS_CHECKED(cb_healthy_);
-    rand_skillcards_ = GET_3STATE(cb_skillcards_);
-    rand_true_rand_stats_ = IS_CHECKED(cb_true_rand_stats_);
-    rand_prefer_same_type_ = IS_CHECKED(cb_prefer_same_type_);
-    rand_export_puppets_ = IS_CHECKED(cb_export_puppets_);
-    rand_true_rand_skills_ = IS_CHECKED(cb_true_rand_skills_);
-    rand_cost_ = GET_3STATE(cb_cost_);
-    rand_skill_element_ = IS_CHECKED(cb_skill_element_);
-    rand_skill_power_ = IS_CHECKED(cb_skill_power_);
-    rand_skill_acc_ = IS_CHECKED(cb_skill_acc_);
-    rand_skill_sp_ = IS_CHECKED(cb_skill_sp_);
-    rand_skill_prio_ = IS_CHECKED(cb_skill_prio_);
-    rand_skill_type_ = IS_CHECKED(cb_skill_type_);
-    //rand_stab_ = IS_CHECKED(cb_stab_);
-    //rand_dmg_starting_move_ = IS_CHECKED(cb_dmg_starting_move_);
-    rand_starting_move_ = GET_3STATE(cb_starting_move_);
-    rand_stat_scaling_ = IS_CHECKED(cb_proportional_stats_);
-    rand_strict_trainers_ = IS_CHECKED(cb_strict_trainers_);
-    */
     rand_skills_ = rand_skill_element_ || rand_skill_power_ || rand_skill_acc_ || rand_skill_sp_ || rand_skill_prio_ || rand_skill_type_;
     rand_puppets_ = rand_skillsets_ || rand_stats_ || rand_types_ || rand_abilities_ || rand_cost_;
 
