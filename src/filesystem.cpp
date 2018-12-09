@@ -20,7 +20,7 @@
 #define WIN32_LEAN_AND_MEAN
 #include <Windows.h>
 #else
-#include <boost/filesystem.hpp>
+#include <filesystem>
 #include <fstream>
 #endif // _WIN32
 
@@ -30,8 +30,8 @@ bool copy_file(const std::string& src, const std::string& dest)
 #ifdef _WIN32
     return (CopyFileA(src.c_str(), dest.c_str(), FALSE) != 0);
 #else
-    boost::system::error_code ec;
-    boost::filesystem::copy_file(src, dest, ec);
+    std::error_code ec;
+    std::filesystem::copy_file(src, dest, ec);
     return !ec;
 #endif // _WIN32
 }
@@ -41,8 +41,8 @@ bool copy_file(const std::wstring& src, const std::wstring& dest)
 #ifdef _WIN32
     return (CopyFileW(src.c_str(), dest.c_str(), FALSE) != 0);
 #else
-    boost::system::error_code ec;
-    boost::filesystem::copy_file(src, dest, ec);
+    std::error_code ec;
+    std::filesystem::copy_file(src, dest, ec);
     return !ec;
 #endif // _WIN32
 }
@@ -82,7 +82,7 @@ FileBuf read_file(const std::wstring& file, std::size_t& size)
     size = (std::size_t)len.QuadPart;
     return buf;
 #else
-    boost::filesystem::path path(file);
+    std::filesystem::path path(file);
     std::ifstream infile(path.native(), std::ios::binary | std::ios::ate);
     if(!infile)
         return FileBuf();
@@ -169,8 +169,8 @@ bool create_directory(const std::string& dir)
 #ifdef _WIN32
     return ((CreateDirectoryA(dir.c_str(), NULL) != 0) || (GetLastError() == ERROR_ALREADY_EXISTS));
 #else
-    boost::system::error_code ec;
-    return boost::filesystem::create_directory(dir, ec);
+    std::error_code ec;
+    return std::filesystem::create_directory(dir, ec);
 #endif // _WIN32
 }
 
@@ -179,8 +179,8 @@ bool create_directory(const std::wstring& dir)
 #ifdef _WIN32
     return ((CreateDirectoryW(dir.c_str(), NULL) != 0) || (GetLastError() == ERROR_ALREADY_EXISTS));
 #else
-    boost::system::error_code ec;
-    return boost::filesystem::create_directory(dir, ec);
+    std::error_code ec;
+    return std::filesystem::create_directory(dir, ec);
 #endif // _WIN32
 }
 
@@ -220,7 +220,7 @@ bool write_file(const std::wstring& file, const void *buf, std::size_t len)
     CloseHandle(outfile);
     return ret;
 #else
-    boost::filesystem::path path(file);
+    std::filesystem::path path(file);
     std::ofstream outfile(path.native(), std::ios::binary);
     if(!outfile)
         return false;
@@ -236,8 +236,8 @@ bool path_exists(const std::string& path)
 #ifdef _WIN32
     return (GetFileAttributesA(path.c_str()) != INVALID_FILE_ATTRIBUTES);
 #else
-    boost::system::error_code ec;
-    return (boost::filesystem::exists(path, ec) && !ec);
+    std::error_code ec;
+    return (std::filesystem::exists(path, ec) && !ec);
 #endif
 }
 
@@ -246,7 +246,7 @@ bool path_exists(const std::wstring& path)
 #ifdef _WIN32
     return (GetFileAttributesW(path.c_str()) != INVALID_FILE_ATTRIBUTES);
 #else
-    boost::system::error_code ec;
-    return (boost::filesystem::exists(path, ec) && !ec);
+    std::error_code ec;
+    return (std::filesystem::exists(path, ec) && !ec);
 #endif
 }

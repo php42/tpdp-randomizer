@@ -18,7 +18,7 @@
 #ifndef RANDOMIZER_H
 #define RANDOMIZER_H
 
-#define VERSION_STRING "v1.1.0 BETA"
+#define VERSION_STRING "v1.1.0 BETA 2"
 
 #define VERSION_MAJOR 0
 #define VERSION_MINOR 0

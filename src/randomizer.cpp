@@ -858,6 +858,8 @@ void Randomizer::randomize_dod_file(void *src, const void *rand_data)
     std::uniform_int_distribution<int> ev(0, 64);
     std::uniform_int_distribution<int> pick_ev(0, 5);
     std::uniform_int_distribution<int> id(0, valid_puppet_ids_.size() - 1);
+    std::uniform_int_distribution<int> mark(1, 5);
+    std::uniform_int_distribution<int> costume(0, is_ynk_ ? COSTUME_WEDDING_DRESS : COSTUME_ALT_OUTFIT);
     std::bernoulli_distribution item_chance(trainer_item_chance_ / 100.0);
     std::bernoulli_distribution coin_flip(0.5);
     std::bernoulli_distribution skillcard_chance(trainer_sc_chance_ / 100.0);
@@ -887,6 +889,9 @@ void Randomizer::randomize_dod_file(void *src, const void *rand_data)
 
         if(lvl < 30)
             puppet.style_index = 0;
+
+        puppet.costume_index = costume(gen_);
+        puppet.mark = mark(gen_);
 
         if(((puppet.puppet_id == 0) && rand_full_party_) || ((puppet.puppet_id != 0) && rand_trainers_))
         {
