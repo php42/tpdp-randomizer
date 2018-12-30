@@ -131,9 +131,12 @@ void Archive::encrypt()
 
     for(; (data_used_ - pos) >= 48; pos += 48)
     {
-        _mm_storeu_si128((__m128i*)&data[pos], _mm_xor_si128(_mm_loadu_si128((__m128i*)&data[pos]), ssekey1));
-        _mm_storeu_si128((__m128i*)&data[pos + 16], _mm_xor_si128(_mm_loadu_si128((__m128i*)&data[pos + 16]), ssekey2));
-        _mm_storeu_si128((__m128i*)&data[pos + 32], _mm_xor_si128(_mm_loadu_si128((__m128i*)&data[pos + 32]), ssekey3));
+        auto block1 = _mm_xor_si128(_mm_loadu_si128((__m128i*)&data[pos]), ssekey1);
+        auto block2 = _mm_xor_si128(_mm_loadu_si128((__m128i*)&data[pos + 16]), ssekey2);
+        auto block3 = _mm_xor_si128(_mm_loadu_si128((__m128i*)&data[pos + 32]), ssekey3);
+        _mm_storeu_si128((__m128i*)&data[pos], block1);
+        _mm_storeu_si128((__m128i*)&data[pos + 16], block2);
+        _mm_storeu_si128((__m128i*)&data[pos + 32], block3);
     }
 #else
     uint32_t k1 = *(uint32_t*)(key);

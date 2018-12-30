@@ -374,13 +374,23 @@ INT_PTR CALLBACK RandomizerGUI::DialogProc(HWND hwnd, UINT msg, WPARAM wParam, L
                     }
                 }
                 break;
-            case IDC_STRICT_TRAINERS:
-                if(IS_CHECKED(gui->cb_strict_trainers_))
-                    SET_CHECKED(gui->cb_trainers_, true);
+            case IDC_FULL_PARTY:
+                if(!IS_CHECKED(gui->cb_trainers_) && !IS_CHECKED(gui->cb_trainer_party_))
+                {
+                    SET_CHECKED(gui->cb_strict_trainers_, false);
+                    EnableWindow(gui->cb_strict_trainers_, false);
+                }
+                else if(IS_CHECKED(gui->cb_trainer_party_))
+                    EnableWindow(gui->cb_strict_trainers_, true);
                 break;
             case IDC_TRAINERS:
-                if(!IS_CHECKED(gui->cb_trainers_))
+                if(!IS_CHECKED(gui->cb_trainers_) && !IS_CHECKED(gui->cb_trainer_party_))
+                {
                     SET_CHECKED(gui->cb_strict_trainers_, false);
+                    EnableWindow(gui->cb_strict_trainers_, false);
+                }
+                else if(IS_CHECKED(gui->cb_trainers_))
+                    EnableWindow(gui->cb_strict_trainers_, true);
                 break;
             default:
                 break;

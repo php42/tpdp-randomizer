@@ -27,3 +27,27 @@
 *.exe
 *.out
 *.app
+
+# more stuff
+*.obj
+*.iobj
+*.pdb
+*.ipdb
+*.ilk
+*.log
+*.tlog
+*.idb
+*.lastbuildstate
+*.user
+*.cache
+*.ipch
+*.TMP
+*.aps
+*.VC.db
+
+
+Debug/*
+Release/*
+src/Debug/*
+src/Release/*
+.vs/*
