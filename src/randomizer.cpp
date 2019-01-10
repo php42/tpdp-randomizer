@@ -173,13 +173,15 @@ bool Randomizer::export_compat(Archive& arc, const std::wstring& filepath)
 
     CSVFile new_csv;
 
-    wchar_t *elements[] = { L"", L"", L"Void", L"Fire", L"Water", L"Nature", L"Earth", L"Steel", L"Wind", L"Electric", L"Light", L"Dark", L"Nether", L"Poison", L"Fight", L"Illusion", L"Sound", L"Dream", L"Warped" };
+    wchar_t *elements[] = { L"", L"", L"Void", L"Fire", L"Water", L"Nature", L"Earth", L"Steel", L"Wind", L"Electric", L"Light", L"Dark", L"Nether", L"Poison", L"Fighting", L"Illusion", L"Sound", L"Dream", L"Warped" };
     wchar_t *short_elements[] = {L"", L"", L"Voi", L"Fir", L"Wtr", L"Ntr", L"Ear", L"Stl", L"Wnd", L"Ele", L"Lgt", L"Drk", L"Nth", L"Poi", L"Fgt", L"Ilu", L"Snd", L"Drm", L"Wrp"};
     wchar_t *markers[] = { L"X", L"R", L" ", L" ", L"W" };
 
     new_csv.data().emplace_back();
     for(auto i = 2; i < (is_ynk_ ? 19 : 18); ++i)
         new_csv.back().push_back(short_elements[i]);
+
+    unsigned int dist_stats[5] = { 0 };
 
     for(std::size_t line = 2; line < csv.num_lines(); ++line) // skip descriptor and null element
     {
@@ -193,12 +195,21 @@ bool Randomizer::export_compat(Archive& arc, const std::wstring& filepath)
                 return false;
             }
             new_csv.back().push_back(L" " + std::wstring(markers[val]) + L" ");
+
+            ++dist_stats[val];
         }
         new_csv.back().push_back(elements[line]);
     }
 
     auto out = new_csv.to_string();
-    out += "\r\nX = immune, R = not effective, blank = neutral, W = super effective.\r\nrow->column\r\n";
+    for(auto& i : out)
+        if(i == ',')
+            i = '|';
+
+    out += "\r\nX = immune, R = not effective, blank = neutral, W = super effective.\r\nrow->column\r\n"
+           "\r\nImmunities: " + std::to_string(dist_stats[0]) + "\r\nResistances: " + std::to_string(dist_stats[1]) +
+           "\r\nWeaknesses: " + std::to_string(dist_stats[4]) + "\r\nNeutral: " + std::to_string(dist_stats[2]) + "\r\n";
+
     write_file(filepath, out.data(), out.size());
 
     return true;
@@ -1415,18 +1426,14 @@ bool Randomizer::randomize_compatibility(Archive& archive)
 
     wchar_t chars[] = {L'0', L'1', L'2', L'4'};
 
-    /* we don't want tons of immunities, so weight randomization towards neutral */
-    std::normal_distribution<double> dist(2.0, 0.9);
+    /* weight randomization towards neutral */
+    std::discrete_distribution<int> dist({ 6, 35, 165, 35 });
 
     for(std::size_t line = 2; line < csv.num_lines(); ++line) // skip descriptor and null element
     {
         for(std::size_t field = 2; field < csv.num_fields(); ++field) // skip descriptor and null element
         {
-            int r = lround(dist(gen_));
-            if(r < 0)
-                r = 0;  /* toss these into the immunities since the immunity count should be pretty low anyway */
-            if(r > 3)
-                r = 2;  /* make these neutral so we don't have too many weaknesses */
+            auto r = dist(gen_);
             csv[line][field] = chars[r];
         }
     }
