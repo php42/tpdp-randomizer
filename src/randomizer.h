@@ -18,7 +18,7 @@
 #ifndef RANDOMIZER_H
 #define RANDOMIZER_H
 
-#define VERSION_STRING "v1.1.0 BETA 2"
+#define VERSION_STRING "v1.1.0 BETA 3"
 
 #define VERSION_MAJOR 0
 #define VERSION_MINOR 0
@@ -96,6 +96,7 @@ private:
     bool rand_stat_scaling_;
     bool rand_strict_trainers_;
     bool rand_trainer_sc_shuffle_;
+    bool rand_export_compat_;
     //unsigned int rand_encounter_rates_;
     unsigned int level_mod_;
     unsigned int stat_quota_;
@@ -152,6 +153,7 @@ private:
 
     void export_locations(const std::wstring& filepath);
     void export_puppets(const std::wstring& filepath);
+    bool export_compat(Archive& arc, const std::wstring& filepath);
 
     void clear();
 

@@ -157,6 +157,53 @@ void Randomizer::export_puppets(const std::wstring& filepath)
     write_file(filepath, out.c_str(), out.length());
 }
 
+bool Randomizer::export_compat(Archive& arc, const std::wstring& filepath)
+{
+    if(!rand_export_compat_)
+        return true;
+
+    auto compat = arc.get_file(is_ynk_ ? "doll/Compatibility.csv" : "doll/elements/Compatibility.csv");
+
+    CSVFile csv(compat.data(), compat.size());
+    if(csv.num_lines() < 18 || csv.num_fields() < 18 || csv.num_lines() > 19 || csv.num_fields() > 19)
+    {
+        error(L"Error parsing compatibility.csv");
+        return false;
+    }
+
+    CSVFile new_csv;
+
+    wchar_t *elements[] = { L"", L"", L"Void", L"Fire", L"Water", L"Nature", L"Earth", L"Steel", L"Wind", L"Electric", L"Light", L"Dark", L"Nether", L"Poison", L"Fight", L"Illusion", L"Sound", L"Dream", L"Warped" };
+    wchar_t *short_elements[] = {L"", L"", L"Voi", L"Fir", L"Wtr", L"Ntr", L"Ear", L"Stl", L"Wnd", L"Ele", L"Lgt", L"Drk", L"Nth", L"Poi", L"Fgt", L"Ilu", L"Snd", L"Drm", L"Wrp"};
+    wchar_t *markers[] = { L"X", L"R", L" ", L" ", L"W" };
+
+    new_csv.data().emplace_back();
+    for(auto i = 2; i < (is_ynk_ ? 19 : 18); ++i)
+        new_csv.back().push_back(short_elements[i]);
+
+    for(std::size_t line = 2; line < csv.num_lines(); ++line) // skip descriptor and null element
+    {
+        new_csv.data().emplace_back();
+        for(std::size_t field = 2; field < csv.num_fields(); ++field) // skip descriptor and null element
+        {
+            auto val = std::stoul(csv[line][field]);
+            if(val >= 5)
+            {
+                error(L"Error parsing compatibility.csv");
+                return false;
+            }
+            new_csv.back().push_back(L" " + std::wstring(markers[val]) + L" ");
+        }
+        new_csv.back().push_back(elements[line]);
+    }
+
+    auto out = new_csv.to_string();
+    out += "\r\nX = immune, R = not effective, blank = neutral, W = super effective.\r\nrow->column\r\n";
+    write_file(filepath, out.data(), out.size());
+
+    return true;
+}
+
 void Randomizer::clear()
 {
     loc_map_.clear();
@@ -1359,25 +1406,34 @@ bool Randomizer::randomize_compatibility(Archive& archive)
         return false;
     }
 
-    char chars[] = {'0', '1', '2', '4'};
+    CSVFile csv(file.data(), file.size());
+    if(csv.num_lines() < 18 || csv.num_fields() < 18)
+    {
+        error(L"Error parsing compatibility.csv");
+        return false;
+    }
+
+    wchar_t chars[] = {L'0', L'1', L'2', L'4'};
 
     /* we don't want tons of immunities, so weight randomization towards neutral */
     std::normal_distribution<double> dist(2.0, 0.9);
 
-    for(char *pos = file.data(); pos < (file.data() + file.size()); ++pos)
+    for(std::size_t line = 2; line < csv.num_lines(); ++line) // skip descriptor and null element
     {
-        if((*pos >= '0') && (*pos <= '9'))
+        for(std::size_t field = 2; field < csv.num_fields(); ++field) // skip descriptor and null element
         {
             int r = lround(dist(gen_));
             if(r < 0)
                 r = 0;  /* toss these into the immunities since the immunity count should be pretty low anyway */
             if(r > 3)
                 r = 2;  /* make these neutral so we don't have too many weaknesses */
-            *pos = chars[r];
+            csv[line][field] = chars[r];
         }
     }
 
-    if(!archive.repack_file(file))
+    auto new_csv = csv.to_string();
+
+    if(!archive.repack_file(file.file_index(), new_csv.data(), new_csv.size()))
     {
         error(L"Error repacking compatibility.csv");
         return false;
@@ -1546,6 +1602,9 @@ bool Randomizer::randomize(const std::wstring& dir, unsigned int seed)
         return false;
 
     if(!randomize_compatibility(archive))
+        return false;
+
+    if(!export_compat(archive, dir + L"/type_chart.txt"))
         return false;
 
     set_progress_bar(50);

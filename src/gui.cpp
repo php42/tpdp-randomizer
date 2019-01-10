@@ -271,6 +271,7 @@ INT_PTR CALLBACK RandomizerGUI::DialogProc(HWND hwnd, UINT msg, WPARAM wParam, L
                     rnd.rand_starting_move_ = GET_3STATE(gui->cb_starting_move_);
                     rnd.rand_stat_scaling_ = IS_CHECKED(gui->cb_proportional_stats_);
                     rnd.rand_strict_trainers_ = IS_CHECKED(gui->cb_strict_trainers_);
+                    rnd.rand_export_compat_ = IS_CHECKED(gui->cb_export_compat_);
 
                     if(rnd.randomize(get_window_text(gui->wnd_dir_), get_window_uint(gui->wnd_seed_)))
                     {
@@ -470,6 +471,7 @@ RandomizerGUI::RandomizerGUI(HINSTANCE hInstance)
     init_hwnd_member(cb_strict_trainers_, IDC_STRICT_TRAINERS);
     init_hwnd_member(cb_cost_, IDC_PUPPET_COST);
     init_hwnd_member(cb_starting_move_, IDC_STAB_STARTING_MOVE);
+    init_hwnd_member(cb_export_compat_, IDC_EXPORT_COMPAT);
 
     init_hwnd_member(progress_bar_, IDC_PROG_BAR);
 
@@ -518,6 +520,7 @@ RandomizerGUI::RandomizerGUI(HINSTANCE hInstance)
     set_tooltip(wnd_item_chance_, L"Chance for trainer puppets to have a held item.");
     set_tooltip(wnd_stat_ratio_, L"Adjust maximum stat variance when using proportional stats.\nA value of 25 allows stats to change up to a maximum of +/- 25% of the original stat.");
     set_tooltip(cb_cost_, L"This is a 3-state checkbox. Click twice to get to the \"middle\" state.\nChecked: randomized puppet cost\nMiddle: all puppets set to 120 cost");
+    set_tooltip(cb_export_compat_, L"Export the type effectiveness table to \"type_chart.txt\" in the game folder");
 
     checkboxes_.push_back(cb_skills_);
     checkboxes_.push_back(cb_stats_);
@@ -541,6 +544,7 @@ RandomizerGUI::RandomizerGUI(HINSTANCE hInstance)
     checkboxes_.push_back(cb_skill_type_);
     checkboxes_.push_back(cb_proportional_stats_);
     checkboxes_.push_back(cb_strict_trainers_);
+    checkboxes_.push_back(cb_export_compat_);
 
     checkboxes_3state_.push_back(cb_cost_);
     checkboxes_3state_.push_back(cb_encounters_);
