@@ -21,7 +21,7 @@
 
 /* conversions between shift-jis and unicode */
 std::wstring sjis_to_utf(const std::string& str);
-std::wstring sjis_to_utf(const char *begin, const char *end);
+std::wstring sjis_to_utf(const char *str, std::size_t sz);
 std::string utf_to_sjis(const std::wstring& str);
 
 /* UTF-8 to wchar_t */

@@ -317,7 +317,7 @@ bool CSVFile::parse(const void *data, std::size_t len)
 {
     clear();
 
-    std::wstring file = sjis_to_utf((const char*)data, (const char*)data + len);
+    std::wstring file = sjis_to_utf((const char*)data, len);
 
     int num_splits = 0;
 

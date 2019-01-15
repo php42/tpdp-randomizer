@@ -550,6 +550,28 @@ RandomizerGUI::RandomizerGUI(HINSTANCE hInstance)
     checkboxes_3state_.push_back(cb_encounters_);
     checkboxes_3state_.push_back(cb_starting_move_);
     checkboxes_3state_.push_back(cb_skillcards_);
+
+    wchar_t appdata_path[MAX_PATH];
+    if(!SUCCEEDED(SHGetFolderPathW(NULL, CSIDL_APPDATA, NULL, 0, appdata_path))) // winxp support
+        return;
+
+    /* detect game folder location */
+    std::size_t sz;
+    auto cfg_file = read_file(std::wstring(appdata_path) + L"/FocasLens/幻想人形演舞-ユメノカケラ-/install.ini", sz);
+    if(cfg_file == nullptr)
+        cfg_file = read_file(std::wstring(appdata_path) + L"/FocasLens/幻想人形演舞/gn_enbu.ini", sz);
+    if(cfg_file != nullptr)
+    {
+        std::wstring str(sjis_to_utf(cfg_file.get(), sz));
+        std::wstring path;
+        auto pos = str.find(L"InstallPath=");
+        if(pos != std::string::npos)
+        {
+            pos += 12;
+            path = str.substr(pos, str.find(L"\r\n", pos) - pos);
+            set_window_text(wnd_dir_, path.c_str());
+        }
+    }
 }
 
 void RandomizerGUI::generate_seed()

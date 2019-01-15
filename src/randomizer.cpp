@@ -143,7 +143,10 @@ void Randomizer::export_puppets(const std::wstring& filepath)
 
                     if(style.skill_compat_table[i] & (1 << j))
                     {
-                        temp += L"\t\t#" + std::to_wstring((i * 8) + j + 1) + L' ';
+                        auto card_num = (i * 8) + j + 1;
+                        if(is_ynk_ && (card_num >= 114)) // fix for sign skills in YnK
+                            card_num -= 8;
+                        temp += L"\t\t#" + std::to_wstring(card_num) + L' ';
                         temp += skill_names_[items_[item_id].skill_id] + L"\r\n";
                     }
                 }
@@ -1530,16 +1533,16 @@ bool Randomizer::parse_puppet_names(Archive& archive)
         return false;
     }
 
-    const char *pos = file.data();
-    const char *eof = pos + file.size();
-    for(const char *endpos = pos; endpos < eof; ++endpos)
+    auto utf = sjis_to_utf(file.data(), file.size());
+
+    std::size_t pos = 0;
+    std::size_t endpos = utf.find(L"\r\n");
+
+    while(endpos != std::string::npos)
     {
-        if(*endpos == '\r')
-        {
-            puppet_names_.push_back(std::move(sjis_to_utf(pos, endpos)));
-            pos = endpos + 2;
-            ++endpos;
-        }
+        puppet_names_.push_back(utf.substr(pos, endpos - pos));
+        pos = endpos + 2;
+        endpos = utf.find(L"\r\n", pos);
     }
 
     return true;
