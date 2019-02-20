@@ -273,8 +273,12 @@ INT_PTR CALLBACK RandomizerGUI::DialogProc(HWND hwnd, UINT msg, WPARAM wParam, L
                     rnd.rand_strict_trainers_ = IS_CHECKED(gui->cb_strict_trainers_);
                     rnd.rand_export_compat_ = IS_CHECKED(gui->cb_export_compat_);
 
+                    gui->generate_share_code();
+
                     if(rnd.randomize(get_window_text(gui->wnd_dir_), get_window_uint(gui->wnd_seed_)))
                     {
+                        auto code = utf_narrow(get_window_text(gui->wnd_share_));
+                        write_file(get_window_text(gui->wnd_dir_) + L"/randomizer_code.txt", code.data(), code.size());
                         gui->set_progress_bar(100);
                         MessageBoxW(hwnd, L"Complete!", L"Success", MB_OK);
                     }

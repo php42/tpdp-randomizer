@@ -1285,6 +1285,8 @@ void Randomizer::randomize_mad_file(void *data)
 			unsigned int num_special = special_encounters.size() ? gen_special(gen_) : 0;
 			unsigned int max_level = 0;
 			unsigned int max_special_level = 0;
+            unsigned int weight_sum = 0;
+            unsigned int special_weight_sum = 0;
 
 			/* find the highest level puppets in each grass type. new puppets will be generated at this level */
 			for(auto& i : encounters)
@@ -1316,12 +1318,29 @@ void Randomizer::randomize_mad_file(void *data)
 			{
 				i.level = max_level;
 				i.weight = gen_weight(gen_);
+                weight_sum += i.weight;
 			}
 			for(auto& i : special_encounters)
 			{
 				i.level = max_special_level;
 				i.weight = gen_weight(gen_);
+                special_weight_sum += i.weight;
 			}
+
+            /* sum of weights determines frequency of encounters (?), if set too low encounters don't spawn
+             * make sure sum of weights is large enough to spawn encounters */
+            if(!encounters.empty() && (weight_sum < 30))
+            {
+                unsigned int d = (unsigned int)std::ceil(double(30 - weight_sum) / double(encounters.size()));
+                for(auto& i : encounters)
+                    i.weight += d;
+            }
+            if(!special_encounters.empty() && (special_weight_sum < 30))
+            {
+                unsigned int d = (unsigned int)std::ceil(double(30 - special_weight_sum) / double(special_encounters.size()));
+                for(auto& i : special_encounters)
+                    i.weight += d;
+            }
 		}
 
 		/* randomize puppets and styles */
