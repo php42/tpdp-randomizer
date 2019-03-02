@@ -18,11 +18,11 @@
 #ifndef RANDOMIZER_H
 #define RANDOMIZER_H
 
-#define VERSION_STRING "v1.1.0"
+#define VERSION_STRING "v1.1.1"
 
 #define VERSION_MAJOR 1
 #define VERSION_MINOR 1
-#define VERSION_REVISION 0
+#define VERSION_REVISION 1
 
 #define MAKE_VERSION(major, minor, revision) ((major << 16) | (minor << 8) | (revision))
 #define VERSION_INT MAKE_VERSION(VERSION_MAJOR, VERSION_MINOR, VERSION_REVISION)
