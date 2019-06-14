@@ -249,7 +249,7 @@ std::size_t Archive::get_header_offset(const std::string& filepath) const
 
     for(auto it = file.begin(); it != file.end(); ++it)
     {
-        *it = toupper(*it);
+        *it = (char)std::toupper(*it);
     }
 
     /* enter the spaghetti zone */
@@ -277,7 +277,7 @@ std::size_t Archive::get_header_offset(const std::string& filepath) const
             }
         }
         if(!found)
-            return -1;
+            return (std::size_t)-1;
         pos = file.find_first_of("/\\");
     }
 
@@ -292,7 +292,7 @@ std::size_t Archive::get_header_offset(const std::string& filepath) const
         if(file == name)
             return offset;
     }
-    return -1;
+    return (std::size_t)-1;
 }
 
 std::size_t Archive::get_dir_header_offset(std::size_t file_header_offset) const
@@ -305,7 +305,7 @@ std::size_t Archive::get_dir_header_offset(std::size_t file_header_offset) const
             return offset;
     }
 
-    return -1;
+    return (std::size_t)-1;
 }
 
 std::size_t Archive::get_file(const std::string& filepath, void *dest) const
@@ -480,7 +480,6 @@ std::string Archive::get_filename(int index) const
 std::string Archive::get_path(int index) const
 {
     assert(index >= 0);
-    std::size_t file_header_offset = (index  * ARCHIVE_FILE_HEADER_SIZE) + header_.filename_table_offset + header_.file_table_offset;
     std::size_t offset = header_.filename_table_offset + header_.dir_table_offset;
 
     for(; offset < data_used_; offset += ARCHIVE_DIR_HEADER_SIZE)

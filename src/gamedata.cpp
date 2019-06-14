@@ -485,45 +485,45 @@ void MADData::clear_encounters()
 	memset(special_puppet_styles, 0, sizeof(special_puppet_styles));
 }
 
-void MADEncounter::read(const MADData& data, int index, bool special)
+void MADEncounter::read(const MADData& data, int i, bool special)
 {
-	assert(index < 10);
-	assert((index < 5) || !special);
-	this->index = index;
+	assert(i < 10);
+	assert((i < 5) || !special);
+	index = i;
 
 	if(special)
 	{
-		id = data.special_puppet_ids[index];
-		level = data.special_puppet_levels[index];
-		style = data.special_puppet_styles[index];
-		weight = data.special_puppet_ratios[index];
+		id = data.special_puppet_ids[i];
+		level = data.special_puppet_levels[i];
+		style = data.special_puppet_styles[i];
+		weight = data.special_puppet_ratios[i];
 	}
 	else
 	{
-		id = data.puppet_ids[index];
-		level = data.puppet_levels[index];
-		style = data.puppet_styles[index];
-		weight = data.puppet_ratios[index];
+		id = data.puppet_ids[i];
+		level = data.puppet_levels[i];
+		style = data.puppet_styles[i];
+		weight = data.puppet_ratios[i];
 	}
 }
 
-void MADEncounter::write(MADData& data, int index, bool special)
+void MADEncounter::write(MADData& data, int i, bool special)
 {
-	assert(index < 10);
-	assert((index < 5) || !special);
+	assert(i < 10);
+	assert((i < 5) || !special);
 
 	if(special)
 	{
-		data.special_puppet_ids[index] = id;
-		data.special_puppet_levels[index] = level;
-		data.special_puppet_styles[index] = style;
-		data.special_puppet_ratios[index] = weight;
+		data.special_puppet_ids[i] = id;
+		data.special_puppet_levels[i] = level;
+		data.special_puppet_styles[i] = style;
+		data.special_puppet_ratios[i] = weight;
 	}
 	else
 	{
-		data.puppet_ids[index] = id;
-		data.puppet_levels[index] = level;
-		data.puppet_styles[index] = style;
-		data.puppet_ratios[index] = weight;
+		data.puppet_ids[i] = id;
+		data.puppet_levels[i] = level;
+		data.puppet_styles[i] = style;
+		data.puppet_ratios[i] = weight;
 	}
 }

@@ -101,7 +101,7 @@ public:
 	uint8_t skill_compat_table[16];			/* bitfield of 128 boolean values indicating ability to learn skill cards */
 	uint16_t lv70_skills[8];				/* extra skills at level 70 */
 
-    std::set<unsigned int> skillset;        /* set of all skills ids this puppet can learn by levelling (used internally, not present in game data) */
+    std::set<uint16_t> skillset;        /* set of all skills ids this puppet can learn by levelling (used internally, not present in game data) */
 
     StyleData();
 	StyleData(const void *data) {read(data);}

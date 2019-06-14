@@ -67,6 +67,7 @@ static unsigned long stoul_nothrow(const std::wstring& str, int base = 10)
     }
 }
 
+/*
 static long stol_nothrow(const std::wstring& str, int base = 10)
 {
     try
@@ -78,11 +79,14 @@ static long stol_nothrow(const std::wstring& str, int base = 10)
         return 0;
     }
 }
+*/
 
+/*
 static int get_window_int(HWND hwnd, int base = 10)
 {
     return stol_nothrow(get_window_text(hwnd), base);
 }
+*/
 
 static unsigned int get_window_uint(HWND hwnd, int base = 10)
 {
@@ -180,7 +184,7 @@ void RandomizerGUI::init_hwnd_member(HWND& hwnd, int id)
     hwnd = GetDlgItem(hwnd_, id);
 }
 
-INT_PTR CALLBACK RandomizerGUI::DialogProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
+INT_PTR CALLBACK RandomizerGUI::DialogProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM /*lParam*/)
 {
     switch(msg)
     {
@@ -794,7 +798,7 @@ bool RandomizerGUI::validate_uint_window(HWND hwnd, const std::wstring& name)
     try
     {
         /* volatile so the compiler doesn't optimize the entire call away (unlikely but possible?) */
-        volatile auto unused = std::stoul(str);
+        [[maybe_unused]] volatile auto unused = std::stoul(str);
     }
     catch(const std::out_of_range&)
     {

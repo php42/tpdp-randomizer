@@ -21,7 +21,7 @@
 #include "gui.h"
 #include "textconvert.h"
 
-int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR lpCmdLine, int nCmdShow)
+int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE /*hPrevInstance*/, PWSTR /*lpCmdLine*/, int /*nCmdShow*/)
 {
     MSG msg = {0};
     HRESULT status = OleInitialize(NULL);

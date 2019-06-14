@@ -34,7 +34,7 @@
 
 static const int g_cost_exp_modifiers[] = {70, 85, 100, 115, 130};
 static const int g_cost_exp_modifiers_ynk[] = {85, 92, 100, 107, 115};
-static const unsigned int g_sign_skills[] = {127, 179, 233, 273, 327, 375, 421, 474, 524, 566, 623, 680, 741, 782, 817};
+static const uint16_t g_sign_skills[] = {127, 179, 233, 273, 327, 375, 421, 474, 524, 566, 623, 680, 741, 782, 817};
 
 static inline bool is_sign_skill(unsigned int id)
 {
@@ -299,7 +299,7 @@ bool Randomizer::parse_puppets(Archive& archive)
     for(unsigned int pos = 0; pos < file.size(); pos += PUPPET_DATA_SIZE)
     {
         PuppetData puppet(&buf[pos]);
-        puppet.id = (pos / PUPPET_DATA_SIZE);
+        puppet.id = (uint16_t)(pos / PUPPET_DATA_SIZE);
         if(puppet.styles[0].style_type == 0) /* not a real puppet */
             continue;
 
@@ -385,7 +385,7 @@ bool Randomizer::parse_items(Archive& archive)
             for(auto& it : csv.data())
             {
                 if((it[3] == L"4") && (it[9] != L"0"))
-                    skill_pool.insert(std::stoul(it[9]));
+                    skill_pool.insert((uint16_t)std::stoul(it[9]));
             }
         }
         catch(const std::exception&)
@@ -399,7 +399,7 @@ bool Randomizer::parse_items(Archive& archive)
 			for(auto i : g_sign_skills)
 				skill_pool.erase(i);
 
-        std::vector<unsigned int> skills(skill_pool.begin(), skill_pool.end());
+        IDVec skills(skill_pool.begin(), skill_pool.end());
 		std::shuffle(skills.begin(), skills.end(), gen_);
 
         for(auto& it : csv.data())
@@ -426,9 +426,9 @@ bool Randomizer::parse_items(Archive& archive)
         if(!item.parse(it, is_ynk_) || (item.name.find(L"Item") != std::wstring::npos) || !item.is_valid())
             continue;
         if((item.type == 4) && (item.skill_id != 0))
-            skillcard_ids_.insert(item.id);
+            skillcard_ids_.insert((uint16_t)item.id);
         else if(item.held)
-            held_item_ids_.insert(item.id);
+            held_item_ids_.insert((uint16_t)item.id);
         items_[item.id] = item;
     }
 
@@ -517,8 +517,8 @@ bool Randomizer::randomize_puppets(Archive& archive)
         error(L"Error unpacking dolldata.dbs from game data");
         return false;
     }
-    std::set<unsigned int> valid_base_skills, valid_normal_skills, valid_evolved_skills, valid_lv70_skills, valid_lv100_skills;
-    std::vector<unsigned int> ability_deck(valid_abilities_.begin(), valid_abilities_.end());
+    IDSet valid_base_skills, valid_normal_skills, valid_evolved_skills, valid_lv70_skills, valid_lv100_skills;
+    IDVec ability_deck(valid_abilities_.begin(), valid_abilities_.end());
     std::bernoulli_distribution chance25(0.25); /* 25% chance */
     std::bernoulli_distribution chance35(0.35); /* 35% chance */
     std::bernoulli_distribution chance60(0.6);  /* 60% chance */
@@ -597,12 +597,12 @@ bool Randomizer::randomize_puppets(Archive& archive)
         {
             for(auto& style : puppet.styles)
             {
-                style.element1 = element(gen_);
+                style.element1 = (uint8_t)element(gen_);
                 if(!chance75(gen_))
                     style.element2 = 0;
                 else
                 {
-                    style.element2 = element(gen_);
+                    style.element2 = (uint8_t)element(gen_);
                     if(style.element1 == style.element2)
                         style.element2 = 0;
                 }
@@ -618,7 +618,7 @@ bool Randomizer::randomize_puppets(Archive& archive)
             if(rand_cost_ > 1)
                 puppet.cost = 4;
             else
-                puppet.cost = gen_cost(gen_);
+                puppet.cost = (uint8_t)gen_cost(gen_);
         }
 
         /* randomize move sets */
@@ -704,13 +704,13 @@ bool Randomizer::randomize_puppets(Archive& archive)
                 if((style.style_type == STYLE_NORMAL) && rand_starting_move_)
                 {
                     style.style_skills[0] = 56; /* default to yin energy if we don't find a match below */
-                    for(auto it = skill_deck.begin(); it != skill_deck.end(); ++it)
+                    for(auto s = skill_deck.begin(); s != skill_deck.end(); ++s)
                     {
-                        auto e = skills_[*it].element;
-                        if((skills_[*it].type != SKILL_TYPE_STATUS) && (skills_[*it].power > 0) && ((rand_starting_move_ != 1) || (e == style.element1) || (e == style.element2)))
+                        auto e = skills_[*s].element;
+                        if((skills_[*s].type != SKILL_TYPE_STATUS) && (skills_[*s].power > 0) && ((rand_starting_move_ != 1) || (e == style.element1) || (e == style.element2)))
                         {
-                            style.style_skills[0] = *it;
-                            skill_deck.erase(it);
+                            style.style_skills[0] = *s;
+                            skill_deck.erase(s);
                             break;
                         }
                     }
@@ -833,18 +833,18 @@ bool Randomizer::randomize_puppets(Archive& archive)
                         if((temp + sum) >= stat_quota_)
                         {
                             temp = stat_quota_ - sum;
-                            i += temp;
+                            i += (uint8_t)temp;
                             sum += temp;
                             break;
                         }
-                        i += temp;
+                        i += (uint8_t)temp;
                         sum += temp;
                     }
                 }
                 else if(rand_true_rand_stats_)
                 {
                     for(auto& i : style.base_stats)
-                        i = gen_stat(gen_);
+                        i = (uint8_t)gen_stat(gen_);
                 }
                 else if(rand_stat_scaling_)
                 {
@@ -868,7 +868,7 @@ bool Randomizer::randomize_puppets(Archive& archive)
                             amin = diff;
                         #endif // !NDEBUG
 
-                        i = temp;
+                        i = (uint8_t)temp;
                     }
                 }
                 else
@@ -879,7 +879,7 @@ bool Randomizer::randomize_puppets(Archive& archive)
                         {
                             assert(!normal_stats_.empty());
                             if(normal_stats_.empty())
-                                i = gen_stat(gen_);
+                                i = (uint8_t)gen_stat(gen_);
                             i = normal_stats_.back();
                             normal_stats_.pop_back();
                         }
@@ -890,7 +890,7 @@ bool Randomizer::randomize_puppets(Archive& archive)
                         {
                             assert(!evolved_stats_.empty());
                             if(evolved_stats_.empty())
-                                i = gen_stat(gen_);
+                                i = (uint8_t)gen_stat(gen_);
                             i = evolved_stats_.back();
                             evolved_stats_.pop_back();
                         }
@@ -956,8 +956,8 @@ void Randomizer::randomize_dod_file(void *src, const void *rand_data)
         if(lvl < 30)
             puppet.style_index = 0;
 
-        puppet.costume_index = costume(gen_);
-        puppet.mark = mark(gen_);
+        puppet.costume_index = (uint8_t)costume(gen_);
+        puppet.mark = (uint8_t)mark(gen_);
 
         if(((puppet.puppet_id == 0) && rand_full_party_) || ((puppet.puppet_id != 0) && rand_trainers_))
         {
@@ -966,14 +966,14 @@ void Randomizer::randomize_dod_file(void *src, const void *rand_data)
 
             assert(data.max_style_index() > 0);
             if(lvl >= 30)
-                puppet.style_index = std::uniform_int_distribution<int>(1, data.max_style_index())(gen_);
+                puppet.style_index = (uint8_t)std::uniform_int_distribution<unsigned int>(1, data.max_style_index())(gen_);
             else
                 puppet.style_index = 0;
 
             const StyleData& style(data.styles[puppet.style_index]);
 
-            std::set<unsigned int> skill_set = style.skillset;
-            std::set<unsigned int> skillcards;
+            IDSet skill_set = style.skillset;
+            IDSet skillcards;
 
             for(unsigned int i = 0; i < 16; ++i)
             {
@@ -981,7 +981,7 @@ void Randomizer::randomize_dod_file(void *src, const void *rand_data)
                 {
                     if(style.skill_compat_table[i] & (1 << j))
                     {
-                        skillcards.insert(items_[385 + (8 * i) + j].skill_id);
+                        skillcards.insert((uint16_t)items_[385 + (8 * i) + j].skill_id);
                     }
                 }
             }
@@ -1051,7 +1051,7 @@ void Randomizer::randomize_dod_file(void *src, const void *rand_data)
             }
 
             for(auto& i : puppet.ivs)
-                i = iv(gen_);
+                i = (uint8_t)iv(gen_);
 
             memset(puppet.evs, 0, sizeof(puppet.evs));
             int total = 0;
@@ -1064,7 +1064,7 @@ void Randomizer::randomize_dod_file(void *src, const void *rand_data)
                 if((total + j) > 130)
                     j = 130 - total;
                 total += j;
-                puppet.evs[k] += j;
+                puppet.evs[k] += (uint8_t)j;
             }
 
             puppet.ability_index = coin_flip(gen_) ? 1 : 0;
@@ -1157,12 +1157,12 @@ bool Randomizer::randomize_skills(Archive& archive)
         return false;
     }
 
-    std::vector<unsigned int> power_deck, acc_deck, sp_deck, prio_deck;
+    std::vector<uint8_t> power_deck, acc_deck, sp_deck, prio_deck;
     char *buf = file.data();
 
-    std::set<unsigned int> skills = valid_skills_;
+    IDSet skills = valid_skills_;
     for(auto i : skillcard_ids_)
-        skills.insert(items_[i].skill_id);
+        skills.insert((uint16_t)items_[i].skill_id);
 
     for(auto i : skills)
     {
@@ -1201,7 +1201,7 @@ bool Randomizer::randomize_skills(Archive& archive)
         }
 
         if(rand_skill_element_)
-            skill.element = element(gen_);
+            skill.element = (uint8_t)element(gen_);
 
         assert(index < power_deck.size());
         if(rand_skill_power_)
@@ -1220,7 +1220,7 @@ bool Randomizer::randomize_skills(Archive& archive)
             skill.priority = prio_deck[index];
 
         if(rand_skill_type_ && (skill.type != SKILL_TYPE_STATUS))
-            skill.type = type(gen_) ? SKILL_TYPE_FOCUS : SKILL_TYPE_SPREAD;
+            skill.type = (uint16_t)(type(gen_) ? SKILL_TYPE_FOCUS : SKILL_TYPE_SPREAD);
 
         skill.write(&buf[it.first * SKILL_DATA_SIZE]);
         ++index;
@@ -1288,8 +1288,8 @@ void Randomizer::randomize_mad_file(void *data)
 			 * we won't add any puppets to any grass type if we don't find some there already */
 			unsigned int num_encounters = encounters.size() ? gen_normal(gen_) : 0;
 			unsigned int num_special = special_encounters.size() ? gen_special(gen_) : 0;
-			unsigned int max_level = 0;
-			unsigned int max_special_level = 0;
+			uint8_t max_level = 0;
+			uint8_t max_special_level = 0;
             unsigned int weight_sum = 0;
             unsigned int special_weight_sum = 0;
 
@@ -1322,13 +1322,13 @@ void Randomizer::randomize_mad_file(void *data)
 			for(auto& i : encounters)
 			{
 				i.level = max_level;
-				i.weight = gen_weight(gen_);
+				i.weight = (uint8_t)gen_weight(gen_);
                 weight_sum += i.weight;
 			}
 			for(auto& i : special_encounters)
 			{
 				i.level = max_special_level;
-				i.weight = gen_weight(gen_);
+				i.weight = (uint8_t)gen_weight(gen_);
                 special_weight_sum += i.weight;
 			}
 
@@ -1338,13 +1338,13 @@ void Randomizer::randomize_mad_file(void *data)
             {
                 unsigned int d = (unsigned int)std::ceil(double(30 - weight_sum) / double(encounters.size()));
                 for(auto& i : encounters)
-                    i.weight += d;
+                    i.weight += (uint8_t)d;
             }
             if(!special_encounters.empty() && (special_weight_sum < 30))
             {
                 unsigned int d = (unsigned int)std::ceil(double(30 - special_weight_sum) / double(special_encounters.size()));
                 for(auto& i : special_encounters)
-                    i.weight += d;
+                    i.weight += (uint8_t)d;
             }
 		}
 
@@ -1354,7 +1354,7 @@ void Randomizer::randomize_mad_file(void *data)
 			i.id = puppet_id_pool_.draw(gen_);
 
 			if(i.level >= 32)
-				i.style = std::uniform_int_distribution<int>(0, puppets_[i.id].max_style_index())(gen_);
+				i.style = (uint8_t)std::uniform_int_distribution<unsigned int>(0, puppets_[i.id].max_style_index())(gen_);
 			else
 				i.style = 0;
 		}
@@ -1363,7 +1363,7 @@ void Randomizer::randomize_mad_file(void *data)
 			i.id = puppet_id_pool_.draw(gen_);
 
 			if(i.level >= 32)
-				i.style = std::uniform_int_distribution<int>(0, puppets_[i.id].max_style_index())(gen_);
+				i.style = (uint8_t)std::uniform_int_distribution<unsigned int>(0, puppets_[i.id].max_style_index())(gen_);
 			else
 				i.style = 0;
 		}

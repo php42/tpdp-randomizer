@@ -38,10 +38,10 @@
 #include <random>
 #include <optional>
 
-typedef std::set<unsigned int> IDSet;
-typedef std::vector<unsigned int> IDVec;
-typedef RandPool<unsigned int> IDPool;
-typedef RandDeck<unsigned int> IDDeck;
+typedef std::set<uint16_t> IDSet;
+typedef std::vector<uint16_t> IDVec;
+typedef RandPool<uint16_t> IDPool;
+typedef RandDeck<uint16_t> IDDeck;
 typedef std::map<unsigned int, std::set<std::wstring>> LocationMap;
 
 class Randomizer
@@ -63,8 +63,8 @@ private:
     IDSet valid_abilities_;
     IDSet skillcard_ids_;
     IDSet held_item_ids_;
-    IDVec normal_stats_;
-    IDVec evolved_stats_;
+    std::vector<uint8_t> normal_stats_;
+    std::vector<uint8_t> evolved_stats_;
     std::map<unsigned int, unsigned int> old_costs_;
     std::multiset<std::wstring> location_names_;
 
@@ -133,7 +133,7 @@ private:
      * if a match is found, returns an optional with the skill ID.
      * if no match is found, returns empty optional */
     template <typename T>
-    std::optional<unsigned int> get_stab_skill(T src, int element1, int element2)
+    std::optional<uint16_t> get_stab_skill(T src, int element1, int element2)
     {
         for(auto it = src.begin(); it != src.end(); ++it)
         {
@@ -142,7 +142,7 @@ private:
             {
                 auto ret = *it;
                 src.erase(it);
-                return ret;
+                return (uint16_t)ret;
             }
         }
 
