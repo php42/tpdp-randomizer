@@ -20,7 +20,7 @@
 #include <cstdint>
 #include <string>
 #include <memory>
-#include <exception>
+#include <stdexcept>
 
 #define ARCHIVE_MAGIC 0x5844
 #define ARCHIVE_HEADER_SIZE 28
