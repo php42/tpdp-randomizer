@@ -166,6 +166,11 @@ bool Randomizer::export_compat(Archive& arc, const std::wstring& filepath)
         return true;
 
     auto compat = arc.get_file(is_ynk_ ? "doll/Compatibility.csv" : "doll/elements/Compatibility.csv");
+    if(!compat)
+    {
+        error(L"Error extracting Compatibility.csv");
+        return false;
+    }
 
     CSVFile csv(compat.data(), compat.size());
     if(csv.num_lines() < 18 || csv.num_fields() < 18 || csv.num_lines() > 19 || csv.num_fields() > 19)
