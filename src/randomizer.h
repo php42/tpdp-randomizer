@@ -18,7 +18,7 @@
 #ifndef RANDOMIZER_H
 #define RANDOMIZER_H
 
-#define VERSION_STRING "v1.1.1"
+#define VERSION_STRING "v1.1.2"
 
 #define VERSION_MAJOR 1
 #define VERSION_MINOR 1
@@ -97,6 +97,7 @@ private:
     bool rand_strict_trainers_;
     bool rand_trainer_sc_shuffle_;
     bool rand_export_compat_;
+	bool rand_evolved_trainers_;
     //unsigned int rand_encounter_rates_;
     unsigned int level_mod_;
     unsigned int stat_quota_;

@@ -932,6 +932,7 @@ void Randomizer::randomize_dod_file(void *src, const void *rand_data)
 
     unsigned int max_lvl = 0;
     double lvl_mul = double(level_mod_) / 100.0;
+	auto min_style = (rand_evolved_trainers_ ? 1 : 0);
     for(char *pos = buf; pos < endbuf; pos += PUPPET_SIZE_BOX)
     {
         decrypt_puppet(pos, rand_data, PUPPET_SIZE);
@@ -961,12 +962,17 @@ void Randomizer::randomize_dod_file(void *src, const void *rand_data)
 
         if(((puppet.puppet_id == 0) && rand_full_party_) || ((puppet.puppet_id != 0) && rand_trainers_))
         {
+			if(puppet.puppet_id == 0)
+			{
+				memset(pos, 0, PUPPET_SIZE);
+			}
+
             PuppetData& data(puppets_[valid_puppet_ids_[id(gen_)]]);
             puppet.puppet_id = data.id;
 
             assert(data.max_style_index() > 0);
             if(lvl >= 30)
-                puppet.style_index = (uint8_t)std::uniform_int_distribution<unsigned int>(1, data.max_style_index())(gen_);
+                puppet.style_index = (uint8_t)std::uniform_int_distribution<unsigned int>(min_style, data.max_style_index())(gen_);
             else
                 puppet.style_index = 0;
 

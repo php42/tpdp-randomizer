@@ -69,7 +69,8 @@ private:
     HWND cb_strict_trainers_;
     HWND cb_cost_;
     HWND cb_starting_move_;
-    HWND cb_export_compat_;
+	HWND cb_export_compat_;
+	HWND cb_evolved_trainers_;
 
     HWND progress_bar_;
 
