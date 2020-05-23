@@ -930,6 +930,9 @@ void Randomizer::randomize_dod_file(void *src, const void *rand_data)
     std::bernoulli_distribution coin_flip(0.5);
     std::bernoulli_distribution skillcard_chance(trainer_sc_chance_ / 100.0);
 
+	if(rand_trainer_ai_)
+		buf[0x2B] = 2;
+
     unsigned int max_lvl = 0;
     double lvl_mul = double(level_mod_) / 100.0;
 	auto min_style = (rand_evolved_trainers_ ? 1 : 0);
@@ -1103,7 +1106,7 @@ void Randomizer::randomize_dod_file(void *src, const void *rand_data)
  * and feeds them to randomize_dod_file() */
 bool Randomizer::randomize_trainers(Archive& archive, ArcFile& rand_data)
 {
-    if(rand_trainers_ || rand_full_party_ || (level_mod_ != 100) || rand_cost_)
+    if(rand_trainers_ || rand_full_party_ || (level_mod_ != 100) || rand_cost_ || rand_trainer_ai_)
     {
         int dir_index = archive.get_index("script/dollOperator");
         if(dir_index < 0)

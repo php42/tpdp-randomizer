@@ -277,6 +277,7 @@ INT_PTR CALLBACK RandomizerGUI::DialogProc(HWND hwnd, UINT msg, WPARAM wParam, L
                     rnd.rand_strict_trainers_ = IS_CHECKED(gui->cb_strict_trainers_);
                     rnd.rand_export_compat_ = IS_CHECKED(gui->cb_export_compat_);
 					rnd.rand_evolved_trainers_ = IS_CHECKED(gui->cb_evolved_trainers_);
+					rnd.rand_trainer_ai_ = IS_CHECKED(gui->cb_trainer_ai_);
 
                     gui->generate_share_code();
 
@@ -440,6 +441,13 @@ RandomizerGUI::RandomizerGUI(HINSTANCE hInstance)
     if(hwnd_ == NULL)
         abort();
 
+	auto icon = LoadIconW(hInstance_, MAKEINTRESOURCEW(IDI_ICON1));
+	if(icon != NULL)
+	{
+		SendMessageW(hwnd_, WM_SETICON, ICON_BIG, (LPARAM)icon);
+		SendMessageW(hwnd_, WM_SETICON, ICON_SMALL, (LPARAM)icon);
+	}
+
     /* store pointer to this object in the userdata field of the window
      * this is used by the window callback procedure, and is a bit more proper than a global variable */
     SetWindowLongPtrW(hwnd_, GWLP_USERDATA, (LONG_PTR)this);
@@ -490,6 +498,7 @@ RandomizerGUI::RandomizerGUI(HINSTANCE hInstance)
     init_hwnd_member(cb_starting_move_, IDC_STAB_STARTING_MOVE);
 	init_hwnd_member(cb_export_compat_, IDC_EXPORT_COMPAT);
 	init_hwnd_member(cb_evolved_trainers_, IDC_EVOLVED_TRAINERS);
+	init_hwnd_member(cb_trainer_ai_, IDC_TRAINER_AI);
 
     init_hwnd_member(progress_bar_, IDC_PROG_BAR);
 
@@ -540,6 +549,7 @@ RandomizerGUI::RandomizerGUI(HINSTANCE hInstance)
     set_tooltip(cb_cost_, L"This is a 3-state checkbox. Click twice to get to the \"middle\" state.\nChecked: randomized puppet cost\nMiddle: all puppets set to 120 cost");
 	set_tooltip(cb_export_compat_, L"Export the type effectiveness table to \"type_chart.txt\" in the game folder");
 	set_tooltip(cb_evolved_trainers_, L"Do not generate normal trainer puppets above level 30.");
+	set_tooltip(cb_trainer_ai_, L"Set all trainer AI to max difficulty.");
 
 	checkboxes_.push_back(cb_evolved_trainers_);
     checkboxes_.push_back(cb_skills_);
@@ -565,6 +575,7 @@ RandomizerGUI::RandomizerGUI(HINSTANCE hInstance)
     checkboxes_.push_back(cb_proportional_stats_);
     checkboxes_.push_back(cb_strict_trainers_);
 	checkboxes_.push_back(cb_export_compat_);
+	checkboxes_.push_back(cb_trainer_ai_);
 
     checkboxes_3state_.push_back(cb_cost_);
     checkboxes_3state_.push_back(cb_encounters_);
@@ -606,14 +617,14 @@ void RandomizerGUI::generate_seed()
 /* serialize the randomization settings into a text string */
 void RandomizerGUI::generate_share_code()
 {
-    unsigned int bitfield = 0;
+    uint64_t bitfield = 0;
 
     assert((sizeof(bitfield) * 8) >= (checkboxes_.size() + (checkboxes_3state_.size() * 2)));
 
     for(std::size_t i = 0; i < checkboxes_.size(); ++i)
     {
         if(IS_CHECKED(checkboxes_[i]))
-            bitfield |= (1U << i);
+            bitfield |= (1ULL << i);
     }
 
     for(std::size_t i = 0; i < checkboxes_3state_.size(); ++i)
@@ -714,7 +725,7 @@ bool RandomizerGUI::load_share_code()
 
         bool sc_shuffle = code_segs.at(4).empty();
 
-        auto bitfield = base64_decode(code_segs.at(0));
+        auto bitfield = base64_decode<uint64_t>(code_segs.at(0));
         auto seed = base64_decode(code_segs.at(1));
         auto lvl_mod = base64_decode(code_segs.at(2));
         auto quota = base64_decode(code_segs.at(3));
@@ -726,7 +737,7 @@ bool RandomizerGUI::load_share_code()
 
         for(std::size_t i = 0; i < checkboxes_.size(); ++i)
         {
-            SET_CHECKED(checkboxes_[i], (bitfield & (1U << i)));
+            SET_CHECKED(checkboxes_[i], (bitfield & (1ULL << i)));
         }
 
         for(std::size_t i = 0; i < checkboxes_3state_.size(); ++i)
@@ -735,7 +746,7 @@ bool RandomizerGUI::load_share_code()
             if(state > 2)
                 throw std::exception();
 
-            SET_3STATE(checkboxes_3state_[i], state);
+            SET_3STATE(checkboxes_3state_[i], (WPARAM)state);
         }
 
         /* manually generate button click notifications so our wndproc gets called */

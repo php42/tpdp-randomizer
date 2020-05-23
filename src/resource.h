@@ -3,6 +3,7 @@
 // Used by TPDPRandomizer.rc
 //
 #define IDD_MAINWINDOW                  103
+#define IDI_ICON1                       105
 #define IDC_FOLDER_BOX                  1001
 #define IDC_BROWSE                      1002
 #define IDC_ABILITIES                   1004
@@ -54,16 +55,16 @@
 #define IDC_QUOTA_TXT                   1052
 #define IDC_RATIO_TXT                   1053
 #define IDC_EXPORT_COMPAT               1054
-#define IDC_CHECK1                      1055
 #define IDC_EVOLVED_TRAINERS            1055
+#define IDC_TRAINER_AI                  1056
 
 // Next default values for new objects
 // 
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
-#define _APS_NEXT_RESOURCE_VALUE        105
+#define _APS_NEXT_RESOURCE_VALUE        106
 #define _APS_NEXT_COMMAND_VALUE         40001
-#define _APS_NEXT_CONTROL_VALUE         1056
+#define _APS_NEXT_CONTROL_VALUE         1057
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif

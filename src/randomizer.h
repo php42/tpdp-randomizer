@@ -18,11 +18,11 @@
 #ifndef RANDOMIZER_H
 #define RANDOMIZER_H
 
-#define VERSION_STRING "v1.1.2"
+#define VERSION_STRING "v1.2.0"
 
 #define VERSION_MAJOR 1
-#define VERSION_MINOR 1
-#define VERSION_REVISION 1
+#define VERSION_MINOR 2
+#define VERSION_REVISION 0
 
 #define MAKE_VERSION(major, minor, revision) ((major << 16) | (minor << 8) | (revision))
 #define VERSION_INT MAKE_VERSION(VERSION_MAJOR, VERSION_MINOR, VERSION_REVISION)
@@ -98,6 +98,7 @@ private:
     bool rand_trainer_sc_shuffle_;
     bool rand_export_compat_;
 	bool rand_evolved_trainers_;
+	bool rand_trainer_ai_;
     //unsigned int rand_encounter_rates_;
     unsigned int level_mod_;
     unsigned int stat_quota_;
