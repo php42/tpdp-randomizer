@@ -931,7 +931,7 @@ void Randomizer::randomize_dod_file(void *src, const void *rand_data)
     std::bernoulli_distribution skillcard_chance(trainer_sc_chance_ / 100.0);
 
 	if(rand_trainer_ai_)
-		buf[0x2B] = 2;
+		((char*)src)[0x2B] = 2;
 
     unsigned int max_lvl = 0;
     double lvl_mul = double(level_mod_) / 100.0;
