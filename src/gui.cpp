@@ -278,6 +278,8 @@ INT_PTR CALLBACK RandomizerGUI::DialogProc(HWND hwnd, UINT msg, WPARAM wParam, L
                     rnd.rand_export_compat_ = IS_CHECKED(gui->cb_export_compat_);
 					rnd.rand_evolved_trainers_ = IS_CHECKED(gui->cb_evolved_trainers_);
 					rnd.rand_trainer_ai_ = IS_CHECKED(gui->cb_trainer_ai_);
+					rnd.rand_trainer_max_ivs_ = IS_CHECKED(gui->cb_trainer_ivs_);
+					rnd.rand_trainer_max_evs_ = IS_CHECKED(gui->cb_trainer_evs_);
 
                     gui->generate_share_code();
 
@@ -499,6 +501,8 @@ RandomizerGUI::RandomizerGUI(HINSTANCE hInstance)
 	init_hwnd_member(cb_export_compat_, IDC_EXPORT_COMPAT);
 	init_hwnd_member(cb_evolved_trainers_, IDC_EVOLVED_TRAINERS);
 	init_hwnd_member(cb_trainer_ai_, IDC_TRAINER_AI);
+	init_hwnd_member(cb_trainer_ivs_, IDC_TRAINER_MAX_IVS);
+	init_hwnd_member(cb_trainer_evs_, IDC_TRAINER_MAX_EVS);
 
     init_hwnd_member(progress_bar_, IDC_PROG_BAR);
 
@@ -550,6 +554,8 @@ RandomizerGUI::RandomizerGUI(HINSTANCE hInstance)
 	set_tooltip(cb_export_compat_, L"Export the type effectiveness table to \"type_chart.txt\" in the game folder");
 	set_tooltip(cb_evolved_trainers_, L"Do not generate normal trainer puppets above level 30.");
 	set_tooltip(cb_trainer_ai_, L"Set all trainer AI to max difficulty.");
+	set_tooltip(cb_trainer_ivs_, L"Set all trainer puppet IVs to max.");
+	set_tooltip(cb_trainer_evs_, L"Set all trainer puppet EVs to 64 in every stat (384 total).");
 
 	checkboxes_.push_back(cb_evolved_trainers_);
     checkboxes_.push_back(cb_skills_);
@@ -576,6 +582,8 @@ RandomizerGUI::RandomizerGUI(HINSTANCE hInstance)
     checkboxes_.push_back(cb_strict_trainers_);
 	checkboxes_.push_back(cb_export_compat_);
 	checkboxes_.push_back(cb_trainer_ai_);
+	checkboxes_.push_back(cb_trainer_ivs_);
+	checkboxes_.push_back(cb_trainer_evs_);
 
     checkboxes_3state_.push_back(cb_cost_);
     checkboxes_3state_.push_back(cb_encounters_);
@@ -628,7 +636,7 @@ void RandomizerGUI::generate_share_code()
     }
 
     for(std::size_t i = 0; i < checkboxes_3state_.size(); ++i)
-        bitfield |= (GET_3STATE(checkboxes_3state_[i]) << (checkboxes_.size() + (i * 2)));
+        bitfield |= ((uint64_t)GET_3STATE(checkboxes_3state_[i]) << (checkboxes_.size() + (i * 2)));
 
     if(!validate())
         return;

@@ -1,18 +1,18 @@
 ﻿/*
-	Copyright (C) 2016 php42
+    Copyright (C) 2016 php42
 
-	This program is free software: you can redistribute it and/or modify
-	it under the terms of the GNU General Public License as published by
-	the Free Software Foundation, either version 3 of the License, or
-	(at your option) any later version.
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
 
-	This program is distributed in the hope that it will be useful,
-	but WITHOUT ANY WARRANTY; without even the implied warranty of
-	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-	GNU General Public License for more details.
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
 
-	You should have received a copy of the GNU General Public License
-	along with this program.  If not, see <http://www.gnu.org/licenses/>.
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 /* Reader beware, insanity lies ahead! */
@@ -31,6 +31,7 @@
 #include <type_traits>
 #include <sstream>
 #include <utility>
+#include <map>
 
 static const int g_cost_exp_modifiers[] = {70, 85, 100, 115, 130};
 static const int g_cost_exp_modifiers_ynk[] = {85, 92, 100, 107, 115};
@@ -102,8 +103,9 @@ void Randomizer::export_puppets(const std::wstring& filepath)
     for(const auto& it : puppets_)
     {
         const PuppetData& puppet(it.second);
-        for(const auto& style : puppet.styles)
+        for(auto index = 0; index < 4; ++index)
         {
+            auto& style = puppet.styles[index];
             if(style.style_type == 0)
                 continue;
             temp += style.style_string() + L' ' + puppet_names_.at(puppet.id) + L" (";
@@ -126,10 +128,20 @@ void Randomizer::export_puppets(const std::wstring& filepath)
             }
 
             temp += L"\r\n\tSkills:\r\n";
+            std::multimap<int, uint16_t> skills;
             for(auto i : style.skillset)
             {
                 if(i > 0)
-                    temp += L"\t\t" + skill_names_[i] + L"\r\n";
+                {
+                    int lvl = puppet.level_to_learn(index, i);
+                    if(lvl >= 0)
+                        skills.insert({ lvl, i });
+                }
+            }
+            for(auto& i : skills)
+            {
+                if(i.second > 0)
+                    temp += L"\t\tLvl " + std::to_wstring(i.first) + L": " + skill_names_[i.second] + L"\r\n";
             }
 
             temp += L"\r\n\tSkill Cards:\r\n";
@@ -313,7 +325,8 @@ bool Randomizer::parse_puppets(Archive& archive)
             if(style.style_type == 0)
                 continue;
 
-            style.skillset = puppet.styles[0].skillset;
+            for(auto i = 0; i < 4; ++i)
+                style.skillset.insert(puppet.styles[0].style_skills[i]);
 
             valid_skills_.insert(style.lv100_skill);
             style.skillset.insert(style.lv100_skill);
@@ -342,6 +355,8 @@ bool Randomizer::parse_puppets(Archive& archive)
                 else
                     evolved_stats_.push_back(i);
             }
+
+            style.skillset.erase(0);
         }
 
         puppets_[puppet.id] = std::move(puppet);
@@ -395,20 +410,20 @@ bool Randomizer::parse_items(Archive& archive)
         }
 
         skill_pool.erase(0);
-		if(rand_skillcards_ > 1)
-			for(auto i : g_sign_skills)
-				skill_pool.erase(i);
+        if(rand_skillcards_ > 1)
+            for(auto i : g_sign_skills)
+                skill_pool.erase(i);
 
         IDVec skills(skill_pool.begin(), skill_pool.end());
-		std::shuffle(skills.begin(), skills.end(), gen_);
+        std::shuffle(skills.begin(), skills.end(), gen_);
 
         for(auto& it : csv.data())
         {
             if((it[3] == L"4") && (it[9] != L"0") && ((rand_skillcards_ < 2) || !is_sign_skill(std::stoul(it[9]))))
             {
-				assert(!skills.empty());
-				if(skills.empty())
-					continue;
+                assert(!skills.empty());
+                if(skills.empty())
+                    continue;
                 it[9] = std::to_wstring(skills.back());
                 skills.pop_back();
             }
@@ -930,12 +945,12 @@ void Randomizer::randomize_dod_file(void *src, const void *rand_data)
     std::bernoulli_distribution coin_flip(0.5);
     std::bernoulli_distribution skillcard_chance(trainer_sc_chance_ / 100.0);
 
-	if(rand_trainer_ai_)
-		((char*)src)[0x2B] = 2;
+    if(rand_trainer_ai_)
+        ((char*)src)[0x2B] = 2;
 
     unsigned int max_lvl = 0;
     double lvl_mul = double(level_mod_) / 100.0;
-	auto min_style = (rand_evolved_trainers_ ? 1 : 0);
+    auto min_style = (rand_evolved_trainers_ ? 1 : 0);
     for(char *pos = buf; pos < endbuf; pos += PUPPET_SIZE_BOX)
     {
         decrypt_puppet(pos, rand_data, PUPPET_SIZE);
@@ -960,18 +975,16 @@ void Randomizer::randomize_dod_file(void *src, const void *rand_data)
         if(lvl < 30)
             puppet.style_index = 0;
 
-        puppet.costume_index = (uint8_t)costume(gen_);
-        puppet.mark = (uint8_t)mark(gen_);
-
         if(((puppet.puppet_id == 0) && rand_full_party_) || ((puppet.puppet_id != 0) && rand_trainers_))
         {
-			if(puppet.puppet_id == 0)
-			{
-				memset(pos, 0, PUPPET_SIZE);
-			}
+            if(puppet.puppet_id == 0)
+            {
+                memset(pos, 0, PUPPET_SIZE);
+            }
 
             PuppetData& data(puppets_[valid_puppet_ids_[id(gen_)]]);
             puppet.puppet_id = data.id;
+            puppet.mark = (uint8_t)mark(gen_);
 
             assert(data.max_style_index() > 0);
             if(lvl >= 30)
@@ -1093,6 +1106,15 @@ void Randomizer::randomize_dod_file(void *src, const void *rand_data)
 
         if(puppet.puppet_id)
         {
+            if(rand_trainer_max_ivs_)
+                memset(puppet.ivs, 0x0F, sizeof(puppet.ivs));
+            if(rand_trainer_max_evs_)
+                memset(puppet.evs, 64, sizeof(puppet.evs));
+            if(rand_trainers_ || rand_full_party_ || rand_trainer_ai_ || rand_trainer_max_evs_ || rand_trainer_max_ivs_)
+            {
+                puppet.costume_index = (uint8_t)costume(gen_);
+                puppet.set_heart_mark(true);
+            }
             puppet.exp = exp_for_level(puppets_[puppet.puppet_id], lvl);
             assert(((lvl < 30) && (puppet.style_index == 0)) || (lvl >= 30));
             puppet.write(pos, false);
@@ -1106,7 +1128,8 @@ void Randomizer::randomize_dod_file(void *src, const void *rand_data)
  * and feeds them to randomize_dod_file() */
 bool Randomizer::randomize_trainers(Archive& archive, ArcFile& rand_data)
 {
-    if(rand_trainers_ || rand_full_party_ || (level_mod_ != 100) || rand_cost_ || rand_trainer_ai_)
+    if(rand_trainers_ || rand_full_party_ || (level_mod_ != 100) || rand_cost_
+        || rand_trainer_ai_ || rand_trainer_max_ivs_ || rand_trainer_max_evs_)
     {
         int dir_index = archive.get_index("script/dollOperator");
         if(dir_index < 0)
@@ -1251,95 +1274,95 @@ void Randomizer::randomize_mad_file(void *data)
     std::uniform_int_distribution<unsigned int> gen_normal(1, 10);
     std::uniform_int_distribution<unsigned int> gen_special(1, 5);
     std::uniform_int_distribution<unsigned int> gen_weight(1, 20); //max in base tpdp is ~25, reduced for less drastic RNG
-	std::vector<MADEncounter> encounters;
-	std::vector<MADEncounter> special_encounters;
+    std::vector<MADEncounter> encounters;
+    std::vector<MADEncounter> special_encounters;
 
-	/* scan for existing puppets */
-	for(int i = 0; i < 10; ++i)
-	{
-		if(mad.puppet_ids[i])
-			encounters.emplace_back(mad, i, false);
+    /* scan for existing puppets */
+    for(int i = 0; i < 10; ++i)
+    {
+        if(mad.puppet_ids[i])
+            encounters.emplace_back(mad, i, false);
 
-		if((i < 5) && mad.special_puppet_ids[i])
-			special_encounters.emplace_back(mad, i, true);
-	}
+        if((i < 5) && mad.special_puppet_ids[i])
+            special_encounters.emplace_back(mad, i, true);
+    }
 
-	/* skip this file if no puppets live here */
-	if(encounters.empty() && special_encounters.empty())
-		return;
+    /* skip this file if no puppets live here */
+    if(encounters.empty() && special_encounters.empty())
+        return;
 
-	/* adjust puppet levels */
-	if(level_mod_ != 100)
-	{
-		double mod = double(level_mod_) / 100.0;
-		for(auto& i : encounters)
-		{
-			double newlvl = (double(i.level) * mod);
-			if(newlvl > 100)
-				newlvl = 100;
-			i.level = (uint8_t)newlvl;
-		}
-		for(auto& i : special_encounters)
-		{
-			double newlvl = (double(i.level) * mod);
-			if(newlvl > 100)
-				newlvl = 100;
-			i.level = (uint8_t)newlvl;
-		}
-	}
+    /* adjust puppet levels */
+    if(level_mod_ != 100)
+    {
+        double mod = double(level_mod_) / 100.0;
+        for(auto& i : encounters)
+        {
+            double newlvl = (double(i.level) * mod);
+            if(newlvl > 100)
+                newlvl = 100;
+            i.level = (uint8_t)newlvl;
+        }
+        for(auto& i : special_encounters)
+        {
+            double newlvl = (double(i.level) * mod);
+            if(newlvl > 100)
+                newlvl = 100;
+            i.level = (uint8_t)newlvl;
+        }
+    }
 
-	/* encounter randomization */
-	if(rand_encounters_)
-	{
-		if(rand_encounters_ == 1)
-		{
-			/* since there's no way to tell what areas have what type of grass,
-			 * we won't add any puppets to any grass type if we don't find some there already */
-			unsigned int num_encounters = encounters.size() ? gen_normal(gen_) : 0;
-			unsigned int num_special = special_encounters.size() ? gen_special(gen_) : 0;
-			uint8_t max_level = 0;
-			uint8_t max_special_level = 0;
+    /* encounter randomization */
+    if(rand_encounters_)
+    {
+        if(rand_encounters_ == 1)
+        {
+            /* since there's no way to tell what areas have what type of grass,
+             * we won't add any puppets to any grass type if we don't find some there already */
+            unsigned int num_encounters = encounters.size() ? gen_normal(gen_) : 0;
+            unsigned int num_special = special_encounters.size() ? gen_special(gen_) : 0;
+            uint8_t max_level = 0;
+            uint8_t max_special_level = 0;
             unsigned int weight_sum = 0;
             unsigned int special_weight_sum = 0;
 
-			/* find the highest level puppets in each grass type. new puppets will be generated at this level */
-			for(auto& i : encounters)
-				if(i.level > max_level)
-					max_level = i.level;
+            /* find the highest level puppets in each grass type. new puppets will be generated at this level */
+            for(auto& i : encounters)
+                if(i.level > max_level)
+                    max_level = i.level;
 
-			for(auto& i : special_encounters)
-				if(i.level > max_special_level)
-					max_special_level = i.level;
+            for(auto& i : special_encounters)
+                if(i.level > max_special_level)
+                    max_special_level = i.level;
 
-			assert(max_level || !num_encounters);
-			assert(max_special_level || !num_special);
+            assert(max_level || !num_encounters);
+            assert(max_special_level || !num_special);
 
-			/* we've randomized the number of puppets in this area, add/remove puppets as necessary */
-			encounters.resize(num_encounters);
-			special_encounters.resize(num_special);
+            /* we've randomized the number of puppets in this area, add/remove puppets as necessary */
+            encounters.resize(num_encounters);
+            special_encounters.resize(num_special);
 
-			/* we're generating entirely new puppets, set new indices for them */
-			for(unsigned int i = 0; i < 10; ++i)
-			{
-				if(i < encounters.size())
-					encounters[i].index = i;
-				if(i < special_encounters.size())
-					special_encounters[i].index = i;
-			}
+            /* we're generating entirely new puppets, set new indices for them */
+            for(unsigned int i = 0; i < 10; ++i)
+            {
+                if(i < encounters.size())
+                    encounters[i].index = i;
+                if(i < special_encounters.size())
+                    special_encounters[i].index = i;
+            }
 
-			/* randomize encounter rates and set levels */
-			for(auto& i : encounters)
-			{
-				i.level = max_level;
-				i.weight = (uint8_t)gen_weight(gen_);
+            /* randomize encounter rates and set levels */
+            for(auto& i : encounters)
+            {
+                i.level = max_level;
+                i.weight = (uint8_t)gen_weight(gen_);
                 weight_sum += i.weight;
-			}
-			for(auto& i : special_encounters)
-			{
-				i.level = max_special_level;
-				i.weight = (uint8_t)gen_weight(gen_);
+            }
+            for(auto& i : special_encounters)
+            {
+                i.level = max_special_level;
+                i.weight = (uint8_t)gen_weight(gen_);
                 special_weight_sum += i.weight;
-			}
+            }
 
             /* sum of weights determines frequency of encounters (?), if set too low encounters don't spawn
              * make sure sum of weights is large enough to spawn encounters */
@@ -1355,84 +1378,84 @@ void Randomizer::randomize_mad_file(void *data)
                 for(auto& i : special_encounters)
                     i.weight += (uint8_t)d;
             }
-		}
+        }
 
-		/* randomize puppets and styles */
-		for(auto& i : encounters)
-		{
-			i.id = puppet_id_pool_.draw(gen_);
+        /* randomize puppets and styles */
+        for(auto& i : encounters)
+        {
+            i.id = puppet_id_pool_.draw(gen_);
 
-			if(i.level >= 32)
-				i.style = (uint8_t)std::uniform_int_distribution<unsigned int>(0, puppets_[i.id].max_style_index())(gen_);
-			else
-				i.style = 0;
-		}
-		for(auto& i : special_encounters)
-		{
-			i.id = puppet_id_pool_.draw(gen_);
+            if(i.level >= 32)
+                i.style = (uint8_t)std::uniform_int_distribution<unsigned int>(0, puppets_[i.id].max_style_index())(gen_);
+            else
+                i.style = 0;
+        }
+        for(auto& i : special_encounters)
+        {
+            i.id = puppet_id_pool_.draw(gen_);
 
-			if(i.level >= 32)
-				i.style = (uint8_t)std::uniform_int_distribution<unsigned int>(0, puppets_[i.id].max_style_index())(gen_);
-			else
-				i.style = 0;
-		}
-	}
+            if(i.level >= 32)
+                i.style = (uint8_t)std::uniform_int_distribution<unsigned int>(0, puppets_[i.id].max_style_index())(gen_);
+            else
+                i.style = 0;
+        }
+    }
 
-	/* dump statistics */
-	if(rand_export_locations_)
-	{
-		int weight_sum = 0;
-		int special_weight_sum = 0;
-		std::wstring loc_name;
+    /* dump statistics */
+    if(rand_export_locations_)
+    {
+        int weight_sum = 0;
+        int special_weight_sum = 0;
+        std::wstring loc_name;
 
-		mad.location_name[31] = 0; /* ensure null-terminated */
-		if(mad.location_name[0])
-			loc_name = sjis_to_utf(mad.location_name);
+        mad.location_name[31] = 0; /* ensure null-terminated */
+        if(mad.location_name[0])
+            loc_name = sjis_to_utf(mad.location_name);
 
-		if(!loc_name.empty())
-		{
-			location_names_.insert(loc_name);
-			auto c = location_names_.count(loc_name);
-			if(c > 1)
-				loc_name += L" [" + std::to_wstring(c) + L"]";
-		}
-		else
-			loc_name = L"Unknown Location";
+        if(!loc_name.empty())
+        {
+            location_names_.insert(loc_name);
+            auto c = location_names_.count(loc_name);
+            if(c > 1)
+                loc_name += L" [" + std::to_wstring(c) + L"]";
+        }
+        else
+            loc_name = L"Unknown Location";
 
-		for(auto& i : encounters)
-			weight_sum += i.weight;
-		for(auto& i : special_encounters)
-			special_weight_sum += i.weight;
+        for(auto& i : encounters)
+            weight_sum += i.weight;
+        for(auto& i : special_encounters)
+            special_weight_sum += i.weight;
 
-		for(auto& i : encounters)
-		{
-			std::wostringstream percentage;
-			percentage.precision(3);
-			percentage << (((double)i.weight / (double)weight_sum) * 100.0);
+        for(auto& i : encounters)
+        {
+            std::wostringstream percentage;
+            percentage.precision(3);
+            percentage << (((double)i.weight / (double)weight_sum) * 100.0);
 
-			/* text string describing the puppets that may be caught in this location (used with "export catch locations" option) */
-			loc_map_[i.id].insert(loc_name + L" (" + puppets_[i.id].styles[i.style].style_string() + L") " + percentage.str() + L'%' + L" lvl " + std::to_wstring(i.level));
-		}
+            /* text string describing the puppets that may be caught in this location (used with "export catch locations" option) */
+            loc_map_[i.id].insert(loc_name + L" (" + puppets_[i.id].styles[i.style].style_string() + L") " + percentage.str() + L'%' + L" lvl " + std::to_wstring(i.level));
+        }
 
-		loc_name += L" (blue grass)";
+        loc_name += L" (blue grass)";
 
-		for(auto& i : special_encounters)
-		{
-			std::wostringstream percentage;
-			percentage.precision(3);
-			percentage << (((double)i.weight / (double)special_weight_sum) * 100.0);
+        for(auto& i : special_encounters)
+        {
+            std::wostringstream percentage;
+            percentage.precision(3);
+            percentage << (((double)i.weight / (double)special_weight_sum) * 100.0);
 
-			/* text string describing the puppets that may be caught in this location (used with "export catch locations" option) */
-			loc_map_[i.id].insert(loc_name + L" (" + puppets_[i.id].styles[i.style].style_string() + L") " + percentage.str() + L'%' + L" lvl " + std::to_wstring(i.level));
-		}
-	}
+            /* text string describing the puppets that may be caught in this location (used with "export catch locations" option) */
+            loc_map_[i.id].insert(loc_name + L" (" + puppets_[i.id].styles[i.style].style_string() + L") " + percentage.str() + L'%' + L" lvl " + std::to_wstring(i.level));
+        }
+    }
 
-	mad.clear_encounters();
+    mad.clear_encounters();
 
-	for(auto& i : encounters)
-		i.write(mad, i.index, false);
-	for(auto& i : special_encounters)
-		i.write(mad, i.index, true);
+    for(auto& i : encounters)
+        i.write(mad, i.index, false);
+    for(auto& i : special_encounters)
+        i.write(mad, i.index, true);
 
     mad.write(data);
 }

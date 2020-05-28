@@ -257,8 +257,14 @@ int PuppetData::level_to_learn(unsigned int style_index, unsigned int skill_id) 
     if(skill_id == styles[style_index].lv100_skill)
         return 100;
 
-    if(style_index > 0)
-        return level_to_learn(0, skill_id);
+	if((style_index > 0) && (styles[0].style_type != 0))
+	{
+		for(auto i = 0; i < 4; ++i)
+		{
+			if(skill_id == styles[0].style_skills[i])
+				return 0;
+		}
+	}
 
     return -1;
 }

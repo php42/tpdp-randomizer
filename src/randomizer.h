@@ -99,6 +99,8 @@ private:
     bool rand_export_compat_;
 	bool rand_evolved_trainers_;
 	bool rand_trainer_ai_;
+	bool rand_trainer_max_ivs_;
+	bool rand_trainer_max_evs_;
     //unsigned int rand_encounter_rates_;
     unsigned int level_mod_;
     unsigned int stat_quota_;
@@ -135,7 +137,7 @@ private:
      * if a match is found, returns an optional with the skill ID.
      * if no match is found, returns empty optional */
     template <typename T>
-    std::optional<uint16_t> get_stab_skill(T src, int element1, int element2)
+    std::optional<uint16_t> get_stab_skill(T& src, int element1, int element2)
     {
         for(auto it = src.begin(); it != src.end(); ++it)
         {
