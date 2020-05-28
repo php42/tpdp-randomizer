@@ -1,18 +1,18 @@
 /*
-	Copyright (C) 2016 php42
+    Copyright (C) 2016 php42
 
-	This program is free software: you can redistribute it and/or modify
-	it under the terms of the GNU General Public License as published by
-	the Free Software Foundation, either version 3 of the License, or
-	(at your option) any later version.
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
 
-	This program is distributed in the hope that it will be useful,
-	but WITHOUT ANY WARRANTY; without even the implied warranty of
-	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-	GNU General Public License for more details.
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
 
-	You should have received a copy of the GNU General Public License
-	along with this program.  If not, see <http://www.gnu.org/licenses/>.
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 #include "gamedata.h"
@@ -63,17 +63,17 @@ static_assert(STYLE_MAX == g_num_styles);
 
 void SkillData::read(const void *data)
 {
-	const uint8_t *buf = (const uint8_t*)data;
+    const uint8_t *buf = (const uint8_t*)data;
 
-	element = buf[32];
-	power = buf[33];
-	accuracy = buf[34];
-	sp = buf[35];
-	priority = buf[36];
-	type = read_le16(&buf[37]);
-	effect_id = read_le16(&buf[39]);
-	effect_chance = read_le16(&buf[41]);
-	effect_target = read_le16(&buf[43]);
+    element = buf[32];
+    power = buf[33];
+    accuracy = buf[34];
+    sp = buf[35];
+    priority = buf[36];
+    type = read_le16(&buf[37]);
+    effect_id = read_le16(&buf[39]);
+    effect_chance = read_le16(&buf[41]);
+    effect_target = read_le16(&buf[43]);
 }
 
 void SkillData::write(void *data)
@@ -90,7 +90,7 @@ void SkillData::write(void *data)
 
 StyleData::StyleData() : style_type(0), element1(0), element2(0), lv100_skill(0)
 {
-	memset(base_stats, 0, sizeof(base_stats));
+    memset(base_stats, 0, sizeof(base_stats));
     memset(abilities, 0, sizeof(abilities));
     memset(style_skills, 0, sizeof(style_skills));
     memset(skill_compat_table, 0, sizeof(skill_compat_table));
@@ -99,28 +99,28 @@ StyleData::StyleData() : style_type(0), element1(0), element2(0), lv100_skill(0)
 
 void StyleData::read(const void *data)
 {
-	const uint8_t *buf = (const uint8_t*)data;
+    const uint8_t *buf = (const uint8_t*)data;
 
-	style_type = buf[0];
-	element1 = buf[1];
-	element2 = buf[2];
+    style_type = buf[0];
+    element1 = buf[1];
+    element2 = buf[2];
 
-	for(int i = 0; i < 6; ++i)
-		base_stats[i] = buf[3 + i];
+    for(int i = 0; i < 6; ++i)
+        base_stats[i] = buf[3 + i];
 
-	abilities[0] = read_le16(&buf[9]);
-	abilities[1] = read_le16(&buf[11]);
+    abilities[0] = read_le16(&buf[9]);
+    abilities[1] = read_le16(&buf[11]);
 
-	for(int i = 0; i < 11; ++i)
-		style_skills[i] = read_le16(&buf[17 + (i * 2)]);
+    for(int i = 0; i < 11; ++i)
+        style_skills[i] = read_le16(&buf[17 + (i * 2)]);
 
     lv100_skill = read_le16(&buf[0x2D]);
 
-	for(int i = 0; i < 16; ++i)
-		skill_compat_table[i] = buf[49 + i];
+    for(int i = 0; i < 16; ++i)
+        skill_compat_table[i] = buf[49 + i];
 
-	for(int i = 0; i < 8; ++i)
-		lv70_skills[i] = read_le16(&buf[65 + (i * 2)]);
+    for(int i = 0; i < 8; ++i)
+        lv70_skills[i] = read_le16(&buf[65 + (i * 2)]);
 }
 
 void StyleData::write(void * data)
@@ -159,54 +159,54 @@ std::wstring StyleData::style_string() const
         return L"Unknown";
 
     /*
-	switch(style_type)
-	{
+    switch(style_type)
+    {
     case STYLE_NORMAL:
         return L"Normal";
     case STYLE_POWER:
         return L"Power";
     case STYLE_DEFENSE:
         return L"Defense";
-	case STYLE_ASSIST:
-		return L"Assist";
+    case STYLE_ASSIST:
+        return L"Assist";
     case STYLE_SPEED:
         return L"Speed";
-	case STYLE_EXTRA:
-		return L"Extra";
+    case STYLE_EXTRA:
+        return L"Extra";
     case STYLE_NONE:
         return L"None";
-	default:
+    default:
         assert(false);
-		return L"UNKNOWN";
-	}
+        return L"UNKNOWN";
+    }
     */
 }
 
 PuppetData::PuppetData()
 {
-	cost = 0;
-	memset(base_skills, 0, sizeof(base_skills));
-	memset(item_drop_table, 0, sizeof(item_drop_table));
-	id = 0;
+    cost = 0;
+    memset(base_skills, 0, sizeof(base_skills));
+    memset(item_drop_table, 0, sizeof(item_drop_table));
+    id = 0;
 }
 
 void PuppetData::read(const void *data)
 {
-	const uint8_t *buf = (const uint8_t*)data;
+    const uint8_t *buf = (const uint8_t*)data;
 
-	cost = buf[32];
+    cost = buf[32];
 
-	for(int i = 0; i < 5; ++i)
-		base_skills[i] = read_le16(&buf[33 + (i * 2)]);
+    for(int i = 0; i < 5; ++i)
+        base_skills[i] = read_le16(&buf[33 + (i * 2)]);
 
-	for(int i = 0; i < 4; ++i)
-		item_drop_table[i] = read_le16(&buf[43 + (i * 2)]);
+    for(int i = 0; i < 4; ++i)
+        item_drop_table[i] = read_le16(&buf[43 + (i * 2)]);
 
     /* there's an ID here, but it's wrong (?) */
-	id = read_le16(&buf[51]);
+    id = read_le16(&buf[51]);
 
-	for(int i = 0; i < 4; ++i)
-		styles[i].read(&buf[93 + (i * STYLE_DATA_SIZE)]);
+    for(int i = 0; i < 4; ++i)
+        styles[i].read(&buf[93 + (i * STYLE_DATA_SIZE)]);
 }
 
 void PuppetData::write(void *data)
@@ -257,30 +257,30 @@ int PuppetData::level_to_learn(unsigned int style_index, unsigned int skill_id) 
     if(skill_id == styles[style_index].lv100_skill)
         return 100;
 
-	if((style_index > 0) && (styles[0].style_type != 0))
-	{
-		for(auto i = 0; i < 4; ++i)
-		{
-			if(skill_id == styles[0].style_skills[i])
-				return 0;
-		}
-	}
+    if((style_index > 0) && (styles[0].style_type != 0))
+    {
+        for(auto i = 0; i < 4; ++i)
+        {
+            if(skill_id == styles[0].style_skills[i])
+                return 0;
+        }
+    }
 
     return -1;
 }
 
 int PuppetData::max_style_index() const
 {
-	int result = 0;
-	for(int i = 0; i < 4; ++i)
-	{
-		if(styles[i].style_type)
-			result = i;
-		else
-			break;
-	}
+    int result = 0;
+    for(int i = 0; i < 4; ++i)
+    {
+        if(styles[i].style_type)
+            result = i;
+        else
+            break;
+    }
 
-	return result;
+    return result;
 }
 
 bool ItemData::parse(const CSVEntry& data, bool ynk)
@@ -481,55 +481,55 @@ void MADData::write(void *data)
 
 void MADData::clear_encounters()
 {
-	memset(puppet_ids, 0, sizeof(puppet_ids));
-	memset(puppet_levels, 0, sizeof(puppet_levels));
-	memset(puppet_ratios, 0, sizeof(puppet_ratios));
-	memset(puppet_styles, 0, sizeof(puppet_styles));
-	memset(special_puppet_ids, 0, sizeof(special_puppet_ids));
-	memset(special_puppet_levels, 0, sizeof(special_puppet_levels));
-	memset(special_puppet_ratios, 0, sizeof(special_puppet_ratios));
-	memset(special_puppet_styles, 0, sizeof(special_puppet_styles));
+    memset(puppet_ids, 0, sizeof(puppet_ids));
+    memset(puppet_levels, 0, sizeof(puppet_levels));
+    memset(puppet_ratios, 0, sizeof(puppet_ratios));
+    memset(puppet_styles, 0, sizeof(puppet_styles));
+    memset(special_puppet_ids, 0, sizeof(special_puppet_ids));
+    memset(special_puppet_levels, 0, sizeof(special_puppet_levels));
+    memset(special_puppet_ratios, 0, sizeof(special_puppet_ratios));
+    memset(special_puppet_styles, 0, sizeof(special_puppet_styles));
 }
 
 void MADEncounter::read(const MADData& data, int i, bool special)
 {
-	assert(i < 10);
-	assert((i < 5) || !special);
-	index = i;
+    assert(i < 10);
+    assert((i < 5) || !special);
+    index = i;
 
-	if(special)
-	{
-		id = data.special_puppet_ids[i];
-		level = data.special_puppet_levels[i];
-		style = data.special_puppet_styles[i];
-		weight = data.special_puppet_ratios[i];
-	}
-	else
-	{
-		id = data.puppet_ids[i];
-		level = data.puppet_levels[i];
-		style = data.puppet_styles[i];
-		weight = data.puppet_ratios[i];
-	}
+    if(special)
+    {
+        id = data.special_puppet_ids[i];
+        level = data.special_puppet_levels[i];
+        style = data.special_puppet_styles[i];
+        weight = data.special_puppet_ratios[i];
+    }
+    else
+    {
+        id = data.puppet_ids[i];
+        level = data.puppet_levels[i];
+        style = data.puppet_styles[i];
+        weight = data.puppet_ratios[i];
+    }
 }
 
 void MADEncounter::write(MADData& data, int i, bool special)
 {
-	assert(i < 10);
-	assert((i < 5) || !special);
+    assert(i < 10);
+    assert((i < 5) || !special);
 
-	if(special)
-	{
-		data.special_puppet_ids[i] = id;
-		data.special_puppet_levels[i] = level;
-		data.special_puppet_styles[i] = style;
-		data.special_puppet_ratios[i] = weight;
-	}
-	else
-	{
-		data.puppet_ids[i] = id;
-		data.puppet_levels[i] = level;
-		data.puppet_styles[i] = style;
-		data.puppet_ratios[i] = weight;
-	}
+    if(special)
+    {
+        data.special_puppet_ids[i] = id;
+        data.special_puppet_levels[i] = level;
+        data.special_puppet_styles[i] = style;
+        data.special_puppet_ratios[i] = weight;
+    }
+    else
+    {
+        data.puppet_ids[i] = id;
+        data.puppet_levels[i] = level;
+        data.puppet_styles[i] = style;
+        data.puppet_ratios[i] = weight;
+    }
 }

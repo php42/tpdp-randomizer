@@ -1,18 +1,18 @@
 /*
-	Copyright (C) 2016 php42
+    Copyright (C) 2016 php42
 
-	This program is free software: you can redistribute it and/or modify
-	it under the terms of the GNU General Public License as published by
-	the Free Software Foundation, either version 3 of the License, or
-	(at your option) any later version.
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
 
-	This program is distributed in the hope that it will be useful,
-	but WITHOUT ANY WARRANTY; without even the implied warranty of
-	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-	GNU General Public License for more details.
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
 
-	You should have received a copy of the GNU General Public License
-	along with this program.  If not, see <http://www.gnu.org/licenses/>.
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 #ifndef GAMEDATA_H
@@ -30,44 +30,44 @@ typedef std::vector<std::wstring> CSVEntry;
 
 enum PuppetStyleType
 {
-	STYLE_NONE = 0,
-	STYLE_NORMAL,
-	STYLE_POWER,
-	STYLE_DEFENSE,
-	STYLE_ASSIST,
-	STYLE_SPEED,
-	STYLE_EXTRA,
+    STYLE_NONE = 0,
+    STYLE_NORMAL,
+    STYLE_POWER,
+    STYLE_DEFENSE,
+    STYLE_ASSIST,
+    STYLE_SPEED,
+    STYLE_EXTRA,
     STYLE_MAX
 };
 
 enum ElementType
 {
-	ELEMENT_NONE = 0,
-	ELEMENT_VOID,
-	ELEMENT_FIRE,
-	ELEMENT_WATER,
-	ELEMENT_NATURE,
-	ELEMENT_EARTH,
-	ELEMENT_STEEL,
-	ELEMENT_WIND,
-	ELEMENT_ELECTRIC,
-	ELEMENT_LIGHT,
-	ELEMENT_DARK,
-	ELEMENT_NETHER,
-	ELEMENT_POISON,
-	ELEMENT_FIGHTING,
-	ELEMENT_ILLUSION,
-	ELEMENT_SOUND,
-	ELEMENT_DREAM,
-	ELEMENT_WARPED,
+    ELEMENT_NONE = 0,
+    ELEMENT_VOID,
+    ELEMENT_FIRE,
+    ELEMENT_WATER,
+    ELEMENT_NATURE,
+    ELEMENT_EARTH,
+    ELEMENT_STEEL,
+    ELEMENT_WIND,
+    ELEMENT_ELECTRIC,
+    ELEMENT_LIGHT,
+    ELEMENT_DARK,
+    ELEMENT_NETHER,
+    ELEMENT_POISON,
+    ELEMENT_FIGHTING,
+    ELEMENT_ILLUSION,
+    ELEMENT_SOUND,
+    ELEMENT_DREAM,
+    ELEMENT_WARPED,
     ELEMENT_MAX
 };
 
 enum SkillType
 {
-	SKILL_TYPE_FOCUS = 0,
-	SKILL_TYPE_SPREAD,
-	SKILL_TYPE_STATUS,
+    SKILL_TYPE_FOCUS = 0,
+    SKILL_TYPE_SPREAD,
+    SKILL_TYPE_STATUS,
     SKILL_TYPE_MAX
 };
 
@@ -75,17 +75,17 @@ enum SkillType
 class SkillData
 {
 public:
-	//char name[32];									/* for reference, name field is 32 bytes long */
-	uint8_t element, power, accuracy, sp;
-	int8_t priority;
-	uint16_t type;										/* focus, spread, status */
-	uint16_t effect_id, effect_chance, effect_target;	/* best guess. chance seems to be ignored on status effect skills. target = 0 for self, 1 for opponent */
-	//uint8_t unknown_0x2d[74];							/* for reference, 74 bytes of padding or who knows what */
+    //char name[32];									/* for reference, name field is 32 bytes long */
+    uint8_t element, power, accuracy, sp;
+    int8_t priority;
+    uint16_t type;										/* focus, spread, status */
+    uint16_t effect_id, effect_chance, effect_target;	/* best guess. chance seems to be ignored on status effect skills. target = 0 for self, 1 for opponent */
+    //uint8_t unknown_0x2d[74];							/* for reference, 74 bytes of padding or who knows what */
 
-	SkillData() : element(0), power(0), accuracy(0), sp(0), priority(0), type(0), effect_id(0), effect_chance(0), effect_target(0) {}
-	SkillData(const void *data) {read(data);}
+    SkillData() : element(0), power(0), accuracy(0), sp(0), priority(0), type(0), effect_id(0), effect_chance(0), effect_target(0) {}
+    SkillData(const void *data) {read(data);}
 
-	void read(const void *data);
+    void read(const void *data);
     void write(void *data);
 };
 
@@ -93,20 +93,20 @@ public:
 class StyleData
 {
 public:
-	uint8_t style_type, element1, element2;	/* style_type = normal, power, defense, etc */
-	uint8_t base_stats[6];
-	uint16_t abilities[2];
-	uint16_t style_skills[11];				/* lv. 0, 0, 0, 0, 30, 36, 42, 49, 56, 63, 70 */
+    uint8_t style_type, element1, element2;	/* style_type = normal, power, defense, etc */
+    uint8_t base_stats[6];
+    uint16_t abilities[2];
+    uint16_t style_skills[11];				/* lv. 0, 0, 0, 0, 30, 36, 42, 49, 56, 63, 70 */
     uint16_t lv100_skill;                   /* skill learned at level 100 */
-	uint8_t skill_compat_table[16];			/* bitfield of 128 boolean values indicating ability to learn skill cards */
-	uint16_t lv70_skills[8];				/* extra skills at level 70 */
+    uint8_t skill_compat_table[16];			/* bitfield of 128 boolean values indicating ability to learn skill cards */
+    uint16_t lv70_skills[8];				/* extra skills at level 70 */
 
     std::set<uint16_t> skillset;        /* set of all skills ids this puppet can learn by levelling (used internally, not present in game data) */
 
     StyleData();
-	StyleData(const void *data) {read(data);}
+    StyleData(const void *data) {read(data);}
 
-	void read(const void *data);
+    void read(const void *data);
     void write(void *data);
     std::wstring style_string() const;
 };
@@ -115,21 +115,21 @@ public:
 class PuppetData
 {
 public:
-	//char name[32];
-	uint8_t cost;                   /* exp cost modifier */
-	uint16_t base_skills[5];        /* lvl 7, 10, 14, 19, 24 */
-	uint16_t item_drop_table[4];	/* items dropped when defeated in the wild */
-	uint16_t id;                    /* id isn't actually parsed, but is indicated by its position in the file */
-	StyleData styles[4];
+    //char name[32];
+    uint8_t cost;                   /* exp cost modifier */
+    uint16_t base_skills[5];        /* lvl 7, 10, 14, 19, 24 */
+    uint16_t item_drop_table[4];	/* items dropped when defeated in the wild */
+    uint16_t id;                    /* id isn't actually parsed, but is indicated by its position in the file */
+    StyleData styles[4];
 
-	PuppetData();
-	PuppetData(const void *data) {read(data);}
+    PuppetData();
+    PuppetData(const void *data) {read(data);}
 
-	void read(const void *data);
+    void read(const void *data);
     void write(void *data);
 
     int level_to_learn(unsigned int style_index, unsigned int skill_id) const;  /* level required to learn a skill, returns -1 if puppet cannot learn the skill by levelling */
-	int max_style_index() const;
+    int max_style_index() const;
 };
 
 /* base data for items */
@@ -160,26 +160,26 @@ class MADData;
 class MADEncounter
 {
 public:
-	int index;
-	uint16_t id;
-	uint8_t level;
-	uint8_t style;
-	uint8_t weight;
+    int index;
+    uint16_t id;
+    uint8_t level;
+    uint8_t style;
+    uint8_t weight;
     
     /* weight determines encounter rate relative to other puppets in the same grass in the same area.
      * encounter percentage is calculated by the weight of the given puppet divided by the sum of weights
      * of all puppets in the same grass.
      * see Randomizer::randomize_mad_file() in randomizer.cpp for example. */
 
-	MADEncounter() {};
-	MADEncounter(int index, uint16_t id, uint8_t level, uint8_t style, uint8_t weight) : index(index), id(id), level(level), style(style), weight(weight) {}
-	MADEncounter(const MADData& data, int index, bool special) { read(data, index, special); };
+    MADEncounter() {};
+    MADEncounter(int index, uint16_t id, uint8_t level, uint8_t style, uint8_t weight) : index(index), id(id), level(level), style(style), weight(weight) {}
+    MADEncounter(const MADData& data, int index, bool special) { read(data, index, special); };
 
-	/* read the encounter at the given index from the supplied MAD file, 'special' toggles between normal and blue grass encounters */
-	void read(const MADData& data, int index, bool special);
+    /* read the encounter at the given index from the supplied MAD file, 'special' toggles between normal and blue grass encounters */
+    void read(const MADData& data, int index, bool special);
 
-	/* save this encounter to the given index in the supplied MAD file, 'special' toggles between normal and blue grass encounters */
-	void write(MADData& data, int index, bool special);
+    /* save this encounter to the given index in the supplied MAD file, 'special' toggles between normal and blue grass encounters */
+    void write(MADData& data, int index, bool special);
 };
 
 /* data from .mad files. details wild puppet encounters for a specific location
@@ -207,7 +207,7 @@ public:
 
     void read(const void *data);
     void write(void *data);
-	void clear_encounters();
+    void clear_encounters();
 };
 
 /* parses csv files and splits each field into a separate string */

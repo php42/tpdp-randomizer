@@ -1,18 +1,18 @@
 /*
-	Copyright (C) 2016 php42
+    Copyright (C) 2016 php42
 
-	This program is free software: you can redistribute it and/or modify
-	it under the terms of the GNU General Public License as published by
-	the Free Software Foundation, either version 3 of the License, or
-	(at your option) any later version.
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
 
-	This program is distributed in the hope that it will be useful,
-	but WITHOUT ANY WARRANTY; without even the implied warranty of
-	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-	GNU General Public License for more details.
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
 
-	You should have received a copy of the GNU General Public License
-	along with this program.  If not, see <http://www.gnu.org/licenses/>.
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 #ifndef RANDOMIZER_H
@@ -97,10 +97,10 @@ private:
     bool rand_strict_trainers_;
     bool rand_trainer_sc_shuffle_;
     bool rand_export_compat_;
-	bool rand_evolved_trainers_;
-	bool rand_trainer_ai_;
-	bool rand_trainer_max_ivs_;
-	bool rand_trainer_max_evs_;
+    bool rand_evolved_trainers_;
+    bool rand_trainer_ai_;
+    bool rand_trainer_max_ivs_;
+    bool rand_trainer_max_evs_;
     //unsigned int rand_encounter_rates_;
     unsigned int level_mod_;
     unsigned int stat_quota_;
@@ -110,7 +110,7 @@ private:
     unsigned int rand_cost_;
     unsigned int rand_encounters_;
     unsigned int rand_starting_move_;
-	unsigned int rand_skillcards_;
+    unsigned int rand_skillcards_;
 
     bool parse_puppets(Archive& archive);
     bool parse_items(Archive& archive);

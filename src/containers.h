@@ -1,18 +1,18 @@
 /*
-	Copyright (C) 2017 php42
+    Copyright (C) 2017 php42
 
-	This program is free software: you can redistribute it and/or modify
-	it under the terms of the GNU General Public License as published by
-	the Free Software Foundation, either version 3 of the License, or
-	(at your option) any later version.
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
 
-	This program is distributed in the hope that it will be useful,
-	but WITHOUT ANY WARRANTY; without even the implied warranty of
-	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-	GNU General Public License for more details.
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
 
-	You should have received a copy of the GNU General Public License
-	along with this program.  If not, see <http://www.gnu.org/licenses/>.
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 #ifndef CONTAINERS_H
@@ -25,7 +25,7 @@
 
 struct ContainerError : public std::runtime_error
 {
-	using std::runtime_error::runtime_error;
+    using std::runtime_error::runtime_error;
 };
 
 /* A randomized "pool" that will refresh itself when depleted.
@@ -34,18 +34,18 @@ template<typename T>
 class RandPool
 {
 private:
-	std::vector<T> pool_;
-	std::vector<T> src_;
+    std::vector<T> pool_;
+    std::vector<T> src_;
 
 public:
     RandPool() = default;
 
     template<typename Src, typename Rng>
-	RandPool(const Src& src, Rng& gen) : src_(src.begin(), src.end())
-	{
-		assert(src.size());
+    RandPool(const Src& src, Rng& gen) : src_(src.begin(), src.end())
+    {
+        assert(src.size());
         reset(gen);
-	}
+    }
 
     template<typename Src, typename Rng>
     void assign(const Src& src, Rng& gen)
@@ -91,25 +91,25 @@ public:
         return pool_.empty();
     }
 
-	/* Draw a value from the pool. the returned value is removed from the pool.
-	 * If there are no more values in the pool, the pool is refilled with all the original
-	 * values and shuffled again.
+    /* Draw a value from the pool. the returned value is removed from the pool.
+     * If there are no more values in the pool, the pool is refilled with all the original
+     * values and shuffled again.
      * Throws ContainerError if pool and source container are both empty. */
     template<typename Rng>
-	T draw(Rng& gen)
-	{
+    T draw(Rng& gen)
+    {
         assert(src_.size());
         if(pool_.empty() && src_.empty())
             throw ContainerError("Tried to draw from an empty pool");
 
-		if(pool_.empty())
+        if(pool_.empty())
             reset(gen);
 
-		T ret = pool_.back();
-		pool_.pop_back();
+        T ret = pool_.back();
+        pool_.pop_back();
 
-		return ret;
-	}
+        return ret;
+    }
 };
 
 /* Create a randomized "deck" from a source container.
@@ -118,16 +118,16 @@ template<typename T>
 class RandDeck
 {
 private:
-	std::vector<T> deck_;
+    std::vector<T> deck_;
 
 public:
     RandDeck() = default;
 
     template<typename Src, typename Rng>
-	RandDeck(const Src& src, Rng& gen) : deck_(src.begin(), src.end())
-	{
-		std::shuffle(deck_.begin(), deck_.end(), gen);
-	}
+    RandDeck(const Src& src, Rng& gen) : deck_(src.begin(), src.end())
+    {
+        std::shuffle(deck_.begin(), deck_.end(), gen);
+    }
 
     template<typename Src, typename Rng>
     void assign(const Src& src, Rng& gen)
@@ -176,18 +176,18 @@ public:
         return ret;
     }
 
-	/* Draw a value from the deck. The returned value is removed from the deck.
-	 * Returns default_value if the deck is empty */
-	T draw(T default_value)
-	{
-		if(deck_.empty())
-			return default_value;
+    /* Draw a value from the deck. The returned value is removed from the deck.
+     * Returns default_value if the deck is empty */
+    T draw(T default_value)
+    {
+        if(deck_.empty())
+            return default_value;
 
-		T ret;
-		ret = deck_.back();
-		deck_.pop_back();
-		return ret;
-	}
+        T ret;
+        ret = deck_.back();
+        deck_.pop_back();
+        return ret;
+    }
 
     /* Draw a value from the deck. The returned value is removed from the deck.
      * Throws ContainerError if the deck is empty */
