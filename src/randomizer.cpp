@@ -1,4 +1,4 @@
-﻿/*
+/*
     Copyright (C) 2016 php42
 
     This program is free software: you can redistribute it and/or modify
@@ -24,6 +24,7 @@
 #include "puppet.h"
 #include "endian.h"
 #include "textconvert.h"
+#include <algorithm>
 #include <cmath>
 #include <algorithm>
 #include <cassert>

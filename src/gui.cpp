@@ -1,4 +1,4 @@
-﻿/*
+/*
     Copyright (C) 2018 php42
 
     This program is free software: you can redistribute it and/or modify
@@ -25,6 +25,7 @@ processorArchitecture='*' publicKeyToken='6595b64144ccf1df' language='*'\"")
 #include "resource.h"
 #include "textconvert.h"
 #include "filesystem.h"
+#include <algorithm>
 #include <CommCtrl.h>
 #include <ShlObj.h>
 
