@@ -1581,6 +1581,84 @@ bool Randomizer::randomize_wild_puppets(Archive& archive)
     return true;
 }
 
+/* Used for parsing the .obs files (mapping events to a given map) to e.g. modify the trainers behavior */
+bool Randomizer::parse_map_events(Archive& archive)
+{
+    if(rand_blind_trainers_)
+    {
+        int dir_index = archive.get_index("map/data");
+        if(dir_index < 0)
+        {
+            error(L"map/data directory missing from game data");
+            return false;
+        }
+
+        int index = archive.dir_begin(dir_index);
+        int end_index = archive.dir_end(dir_index);
+        if((index < 0) || (end_index < 0))
+        {
+            error(L"Error enumerating map/data directory");
+            return false;
+        }
+
+        int step = (end_index - index) / 25;
+        int count = 0;
+        for(; index < end_index; ++index)
+        {
+            /* update progress bar */
+            if(++count > step)
+            {
+                increment_progress_bar();
+                count = 0;
+            }
+
+            std::string map_id = archive.get_filename(index);
+            int map_index = archive.get_index("map/data/" + map_id + "/" + map_id + ".obs");
+
+            if(map_index < 0)
+            {
+                continue;
+            }
+
+            ArcFile file;
+            if(!(file = archive.get_file(map_index)))
+            {
+                error(L"Error obtaining map file");
+                return false;
+            }
+
+            blind_trainers_in_obs_file(file.data());
+
+            if(!archive.repack_file(file))
+            {
+                error(L"Error repacking .obs file");
+                return false;
+            }
+
+        }
+
+    }
+    
+    
+    return true;
+}
+
+/* Makes all trainers in one obs file pointed to by *data blind (lne of sight 0) */
+bool Randomizer::blind_trainers_in_obs_file(void *data)
+{
+    
+    char *buf = (char*)data;
+
+    /* Trainers are index 512 to 896, and line of sight flag is the eleventh byte */
+    for (int index = 20*512; index < (20*896); index += 20)
+    {
+        memset(&buf[index]+10, 0, 1);
+    }
+
+    return true;
+    
+}
+
 bool Randomizer::parse_puppet_names(Archive& archive)
 {
     ArcFile file;
@@ -1690,6 +1768,9 @@ bool Randomizer::randomize(const std::wstring& dir, unsigned int seed)
         return false;
 
     if(!randomize_trainers(archive, rand_data))
+        return false;
+
+    if(!parse_map_events(archive))
         return false;
 
     set_progress_bar(75);

@@ -1,4 +1,4 @@
-/*
+﻿/*
     Copyright (C) 2018 php42
 
     This program is free software: you can redistribute it and/or modify
@@ -281,6 +281,7 @@ INT_PTR CALLBACK RandomizerGUI::DialogProc(HWND hwnd, UINT msg, WPARAM wParam, L
                     rnd.rand_trainer_ai_ = IS_CHECKED(gui->cb_trainer_ai_);
                     rnd.rand_trainer_max_ivs_ = IS_CHECKED(gui->cb_trainer_ivs_);
                     rnd.rand_trainer_max_evs_ = IS_CHECKED(gui->cb_trainer_evs_);
+                    rnd.rand_blind_trainers_ = IS_CHECKED(gui->cb_blind_trainers_);
 
                     gui->generate_share_code();
 
@@ -504,6 +505,7 @@ RandomizerGUI::RandomizerGUI(HINSTANCE hInstance)
     init_hwnd_member(cb_trainer_ai_, IDC_TRAINER_AI);
     init_hwnd_member(cb_trainer_ivs_, IDC_TRAINER_MAX_IVS);
     init_hwnd_member(cb_trainer_evs_, IDC_TRAINER_MAX_EVS);
+    init_hwnd_member(cb_blind_trainers_, IDC_BLIND_TRAINERS);
 
     init_hwnd_member(progress_bar_, IDC_PROG_BAR);
 
@@ -557,6 +559,7 @@ RandomizerGUI::RandomizerGUI(HINSTANCE hInstance)
     set_tooltip(cb_trainer_ai_, L"Set all trainer AI to max difficulty.");
     set_tooltip(cb_trainer_ivs_, L"Set all trainer puppet IVs to max.");
     set_tooltip(cb_trainer_evs_, L"Set all trainer puppet EVs to 64 in every stat (384 total).");
+    set_tooltip(cb_blind_trainers_, L"Trainers will not initiate battle unless spoken to.");
 
     checkboxes_.push_back(cb_evolved_trainers_);
     checkboxes_.push_back(cb_skills_);
@@ -585,6 +588,7 @@ RandomizerGUI::RandomizerGUI(HINSTANCE hInstance)
     checkboxes_.push_back(cb_trainer_ai_);
     checkboxes_.push_back(cb_trainer_ivs_);
     checkboxes_.push_back(cb_trainer_evs_);
+    checkboxes_.push_back(cb_blind_trainers_);
 
     checkboxes_3state_.push_back(cb_cost_);
     checkboxes_3state_.push_back(cb_encounters_);

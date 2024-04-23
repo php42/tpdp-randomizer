@@ -60,6 +60,7 @@
 #define IDC_TRAINER_MAX_IVS             1057
 #define IDC_CHECK2                      1058
 #define IDC_TRAINER_MAX_EVS             1058
+#define IDC_BLIND_TRAINERS              1059
 
 // Next default values for new objects
 // 
