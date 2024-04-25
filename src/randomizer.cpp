@@ -1289,7 +1289,7 @@ void Randomizer::randomize_mad_file(void *data)
     }
 
     /* skip this file if no puppets live here */
-    if(encounters.empty() && special_encounters.empty())
+    if(encounters.empty() && special_encounters.empty() && !rand_bike_everywhere_ && !rand_gap_map_everywhere_)
         return;
 
     /* adjust puppet levels */
@@ -1402,6 +1402,13 @@ void Randomizer::randomize_mad_file(void *data)
         }
     }
 
+    /* Gap map and bike modifiers */
+    if(rand_bike_everywhere_)
+        mad.bike_disabled[0] = 0;
+
+    if(rand_gap_map_everywhere_)
+        mad.gap_map_disabled[0] = 0;
+
     /* dump statistics */
     if(rand_export_locations_)
     {
@@ -1512,7 +1519,7 @@ bool Randomizer::randomize_compatibility(Archive& archive)
 /* searches through the archive for .mad files and feeds them to randomize_mad_file() */
 bool Randomizer::randomize_wild_puppets(Archive& archive)
 {
-    if(rand_encounters_ || rand_export_locations_ || (level_mod_ != 100))
+    if(rand_encounters_ || rand_export_locations_ || (level_mod_ != 100) || rand_bike_everywhere_ || rand_gap_map_everywhere_)
     {
         int dir_index = archive.get_index("map/data");
         if(dir_index < 0)
@@ -1564,7 +1571,7 @@ bool Randomizer::randomize_wild_puppets(Archive& archive)
 
                 randomize_mad_file(file.data());
 
-                if(rand_encounters_ || (level_mod_ != 100)) /* don't repack if we're just dumping catch locations */
+                if(rand_encounters_ || (level_mod_ != 100) || rand_bike_everywhere_ || rand_gap_map_everywhere_) /* don't repack if we're just dumping catch locations */
                 {
                     if(!archive.repack_file(file))
                     {

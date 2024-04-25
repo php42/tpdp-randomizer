@@ -457,6 +457,10 @@ void MADData::read(const void *data)
     memcpy(special_puppet_levels, &buf[0x4a], sizeof(special_puppet_levels));
     memcpy(special_puppet_styles, &buf[0x4f], sizeof(special_puppet_styles));
     memcpy(special_puppet_ratios, &buf[0x54], sizeof(special_puppet_ratios));
+
+    /* Bike and gap map */
+    memcpy(bike_disabled, &buf[0x0b], sizeof(bike_disabled));
+    memcpy(gap_map_disabled, &buf[0x79], sizeof(gap_map_disabled));
 }
 
 void MADData::write(void *data)
@@ -477,6 +481,10 @@ void MADData::write(void *data)
     memcpy(&buf[0x4a], special_puppet_levels, sizeof(special_puppet_levels));
     memcpy(&buf[0x4f], special_puppet_styles, sizeof(special_puppet_styles));
     memcpy(&buf[0x54], special_puppet_ratios, sizeof(special_puppet_ratios));
+
+    /* Bike and gap map */
+    memcpy(&buf[0x0b], bike_disabled, sizeof(bike_disabled));
+    memcpy(&buf[0x79], gap_map_disabled, sizeof(gap_map_disabled));
 }
 
 void MADData::clear_encounters()
