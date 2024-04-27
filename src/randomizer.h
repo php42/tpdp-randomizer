@@ -101,6 +101,9 @@ private:
     bool rand_trainer_ai_;
     bool rand_trainer_max_ivs_;
     bool rand_trainer_max_evs_;
+    bool rand_blind_trainers_;
+    bool rand_bike_everywhere_;
+    bool rand_gap_map_everywhere_;
     //unsigned int rand_encounter_rates_;
     unsigned int level_mod_;
     unsigned int stat_quota_;
@@ -124,6 +127,8 @@ private:
     bool randomize_compatibility(Archive& archive);
     bool randomize_wild_puppets(Archive& archive);
     bool parse_puppet_names(Archive& archive);
+    bool parse_map_events(Archive& archive);
+    bool blind_trainers_in_obs_file(void *data);
 
     void decrypt_puppet(void *src, const void *rand_data, std::size_t len);
     void encrypt_puppet(void *src, const void *rand_data, std::size_t len);

@@ -46,7 +46,7 @@
 #define IDC_PROG_BAR                    1043
 #define IDC_FOLDER_GRP                  1044
 #define IDC_RAND_GROUP                  1045
-#define IDC_OTHER_GRP                   1046
+#define IDC_DIFFICULTY_GRP              1046
 #define IDC_SEED_GRP                    1047
 #define IDC_SHARE_GRP                   1048
 #define IDC_LVL_TXT                     1049
@@ -60,6 +60,12 @@
 #define IDC_TRAINER_MAX_IVS             1057
 #define IDC_CHECK2                      1058
 #define IDC_TRAINER_MAX_EVS             1058
+#define IDC_QOL_OPTIONS                 1059
+#define IDC_BLIND_TRAINERS              1060
+#define IDC_BIKE_EVERYWHERE             1061
+#define IDC_GAP_MAP_EVERYWHERE          1062
+
+
 
 // Next default values for new objects
 // 

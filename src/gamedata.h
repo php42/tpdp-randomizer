@@ -199,6 +199,10 @@ public:
     uint8_t special_puppet_styles[5];   /* Style of puppets in blue grass (index into puppet style table, see PuppetData) */
     uint8_t special_puppet_ratios[5];   /* Encouter rate weightings of puppets in blue grass */
 
+    /* Bike and gap map flags */
+    uint8_t bike_disabled[1];
+    uint8_t gap_map_disabled[1];
+
     /* null-terminated shift-jis string identifying the location */
     char location_name[32];
 

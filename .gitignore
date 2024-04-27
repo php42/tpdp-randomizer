@@ -51,3 +51,4 @@ Release/*
 src/Debug/*
 src/Release/*
 .vs/*
+src/.vscode/*

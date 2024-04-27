@@ -1,4 +1,4 @@
-﻿/*
+/*
     Copyright (C) 2016 php42
 
     This program is free software: you can redistribute it and/or modify
@@ -24,6 +24,7 @@
 #include "puppet.h"
 #include "endian.h"
 #include "textconvert.h"
+#include <algorithm>
 #include <cmath>
 #include <algorithm>
 #include <cassert>
@@ -1288,7 +1289,7 @@ void Randomizer::randomize_mad_file(void *data)
     }
 
     /* skip this file if no puppets live here */
-    if(encounters.empty() && special_encounters.empty())
+    if(encounters.empty() && special_encounters.empty() && !rand_bike_everywhere_ && !rand_gap_map_everywhere_)
         return;
 
     /* adjust puppet levels */
@@ -1401,6 +1402,13 @@ void Randomizer::randomize_mad_file(void *data)
         }
     }
 
+    /* Gap map and bike modifiers */
+    if(rand_bike_everywhere_)
+        mad.bike_disabled[0] = 0;
+
+    if(rand_gap_map_everywhere_)
+        mad.gap_map_disabled[0] = 0;
+
     /* dump statistics */
     if(rand_export_locations_)
     {
@@ -1511,7 +1519,7 @@ bool Randomizer::randomize_compatibility(Archive& archive)
 /* searches through the archive for .mad files and feeds them to randomize_mad_file() */
 bool Randomizer::randomize_wild_puppets(Archive& archive)
 {
-    if(rand_encounters_ || rand_export_locations_ || (level_mod_ != 100))
+    if(rand_encounters_ || rand_export_locations_ || (level_mod_ != 100) || rand_bike_everywhere_ || rand_gap_map_everywhere_)
     {
         int dir_index = archive.get_index("map/data");
         if(dir_index < 0)
@@ -1563,7 +1571,7 @@ bool Randomizer::randomize_wild_puppets(Archive& archive)
 
                 randomize_mad_file(file.data());
 
-                if(rand_encounters_ || (level_mod_ != 100)) /* don't repack if we're just dumping catch locations */
+                if(rand_encounters_ || (level_mod_ != 100) || rand_bike_everywhere_ || rand_gap_map_everywhere_) /* don't repack if we're just dumping catch locations */
                 {
                     if(!archive.repack_file(file))
                     {
@@ -1578,6 +1586,84 @@ bool Randomizer::randomize_wild_puppets(Archive& archive)
     }
 
     return true;
+}
+
+/* Used for parsing the .obs files (mapping events to a given map) to e.g. modify the trainers behavior */
+bool Randomizer::parse_map_events(Archive& archive)
+{
+    if(rand_blind_trainers_)
+    {
+        int dir_index = archive.get_index("map/data");
+        if(dir_index < 0)
+        {
+            error(L"map/data directory missing from game data");
+            return false;
+        }
+
+        int index = archive.dir_begin(dir_index);
+        int end_index = archive.dir_end(dir_index);
+        if((index < 0) || (end_index < 0))
+        {
+            error(L"Error enumerating map/data directory");
+            return false;
+        }
+
+        int step = (end_index - index) / 25;
+        int count = 0;
+        for(; index < end_index; ++index)
+        {
+            /* update progress bar */
+            if(++count > step)
+            {
+                increment_progress_bar();
+                count = 0;
+            }
+
+            std::string map_id = archive.get_filename(index);
+            int map_index = archive.get_index("map/data/" + map_id + "/" + map_id + ".obs");
+
+            if(map_index < 0)
+            {
+                continue;
+            }
+
+            ArcFile file;
+            if(!(file = archive.get_file(map_index)))
+            {
+                error(L"Error obtaining map file");
+                return false;
+            }
+
+            blind_trainers_in_obs_file(file.data());
+
+            if(!archive.repack_file(file))
+            {
+                error(L"Error repacking .obs file");
+                return false;
+            }
+
+        }
+
+    }
+    
+    
+    return true;
+}
+
+/* Makes all trainers in one obs file pointed to by *data blind (lne of sight 0) */
+bool Randomizer::blind_trainers_in_obs_file(void *data)
+{
+    
+    char *buf = (char*)data;
+
+    /* Trainers are index 512 to 896, and line of sight flag is the eleventh byte */
+    for (int index = 20*512; index < (20*896); index += 20)
+    {
+        memset(&buf[index]+10, 0, 1);
+    }
+
+    return true;
+    
 }
 
 bool Randomizer::parse_puppet_names(Archive& archive)
@@ -1689,6 +1775,9 @@ bool Randomizer::randomize(const std::wstring& dir, unsigned int seed)
         return false;
 
     if(!randomize_trainers(archive, rand_data))
+        return false;
+
+    if(!parse_map_events(archive))
         return false;
 
     set_progress_bar(75);

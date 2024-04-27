@@ -17,6 +17,7 @@
 
 #ifndef CONTAINERS_H
 #define CONTAINERS_H
+#include <algorithm>
 #include <vector>
 #include <random>
 #include <cassert>
