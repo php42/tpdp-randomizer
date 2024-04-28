@@ -1147,7 +1147,7 @@ bool Randomizer::randomize_trainers(Archive& archive, ArcFile& rand_data)
             return false;
         }
 
-        int step = (end_index - index) / 25;
+        int step = (end_index - index) / 12;
         int count = 0;
         for(; index < end_index; ++index)
         {
@@ -1608,7 +1608,7 @@ bool Randomizer::parse_map_events(Archive& archive)
             return false;
         }
 
-        int step = (end_index - index) / 25;
+        int step = (end_index - index) / 13;
         int count = 0;
         for(; index < end_index; ++index)
         {
@@ -1645,7 +1645,6 @@ bool Randomizer::parse_map_events(Archive& archive)
         }
 
     }
-    
     
     return true;
 }
