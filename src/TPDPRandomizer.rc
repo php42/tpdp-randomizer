@@ -17,6 +17,7 @@
 
 #if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_JPN)
 LANGUAGE LANG_JAPANESE, SUBLANG_DEFAULT
+#pragma code_page(932)
 
 #ifdef APSTUDIO_INVOKED
 /////////////////////////////////////////////////////////////////////////////
@@ -52,6 +53,7 @@ END
 
 #if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_ENU)
 LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
+#pragma code_page(1252)
 
 /////////////////////////////////////////////////////////////////////////////
 //
@@ -123,6 +125,7 @@ BEGIN
     CONTROL         "Max Trainer AI",IDC_TRAINER_AI,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,281,180,63,10
     CONTROL         "Max Trainer IVs",IDC_TRAINER_MAX_IVS,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,281,196,66,10
     CONTROL         "Max Trainer EVs",IDC_TRAINER_MAX_EVS,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,281,213,67,10
+    CONTROL         "Costumes",IDC_COSTUMES,"Button",BS_AUTO3STATE | WS_TABSTOP,102,144,47,10
 END
 
 

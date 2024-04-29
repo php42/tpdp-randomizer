@@ -64,8 +64,8 @@
 #define IDC_BLIND_TRAINERS              1060
 #define IDC_BIKE_EVERYWHERE             1061
 #define IDC_GAP_MAP_EVERYWHERE          1062
-
-
+#define IDC_CHECK1                      1063
+#define IDC_COSTUMES                    1063
 
 // Next default values for new objects
 // 
@@ -73,7 +73,7 @@
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NEXT_RESOURCE_VALUE        106
 #define _APS_NEXT_COMMAND_VALUE         40001
-#define _APS_NEXT_CONTROL_VALUE         1059
+#define _APS_NEXT_CONTROL_VALUE         1064
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif

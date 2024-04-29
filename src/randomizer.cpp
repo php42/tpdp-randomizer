@@ -941,7 +941,7 @@ void Randomizer::randomize_dod_file(void *src, const void *rand_data)
     std::uniform_int_distribution<int> pick_ev(0, 5);
     std::uniform_int_distribution<int> id(0, valid_puppet_ids_.size() - 1);
     std::uniform_int_distribution<int> mark(1, 5);
-    std::uniform_int_distribution<int> costume(0, is_ynk_ ? COSTUME_WEDDING_DRESS : COSTUME_ALT_OUTFIT);
+    std::uniform_int_distribution<int> costume(0, (is_ynk_ && (rand_costumes_ <= 1)) ? COSTUME_WEDDING_DRESS : COSTUME_ALT_OUTFIT);
     std::bernoulli_distribution item_chance(trainer_item_chance_ / 100.0);
     std::bernoulli_distribution coin_flip(0.5);
     std::bernoulli_distribution skillcard_chance(trainer_sc_chance_ / 100.0);
@@ -1111,10 +1111,12 @@ void Randomizer::randomize_dod_file(void *src, const void *rand_data)
                 memset(puppet.ivs, 0x0F, sizeof(puppet.ivs));
             if(rand_trainer_max_evs_)
                 memset(puppet.evs, 64, sizeof(puppet.evs));
-            if(rand_trainers_ || rand_full_party_ || rand_trainer_ai_ || rand_trainer_max_evs_ || rand_trainer_max_ivs_)
+            if(rand_costumes_)
             {
                 puppet.costume_index = (uint8_t)costume(gen_);
-                puppet.set_heart_mark(true);
+                assert((puppet.costume_index < COSTUME_WEDDING_DRESS) || (rand_costumes_ > 1));
+                if(puppet.costume_index == COSTUME_WEDDING_DRESS)
+                    puppet.set_heart_mark(true);
             }
             puppet.exp = exp_for_level(puppets_[puppet.puppet_id], lvl);
             assert(((lvl < 30) && (puppet.style_index == 0)) || (lvl >= 30));
@@ -1130,7 +1132,7 @@ void Randomizer::randomize_dod_file(void *src, const void *rand_data)
 bool Randomizer::randomize_trainers(Archive& archive, ArcFile& rand_data)
 {
     if(rand_trainers_ || rand_full_party_ || (level_mod_ != 100) || rand_cost_
-        || rand_trainer_ai_ || rand_trainer_max_ivs_ || rand_trainer_max_evs_)
+        || rand_trainer_ai_ || rand_trainer_max_ivs_ || rand_trainer_max_evs_ || rand_costumes_)
     {
         int dir_index = archive.get_index("script/dollOperator");
         if(dir_index < 0)

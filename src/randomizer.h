@@ -114,6 +114,7 @@ private:
     unsigned int rand_encounters_;
     unsigned int rand_starting_move_;
     unsigned int rand_skillcards_;
+    unsigned int rand_costumes_;
 
     bool parse_puppets(Archive& archive);
     bool parse_items(Archive& archive);

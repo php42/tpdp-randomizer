@@ -284,6 +284,7 @@ INT_PTR CALLBACK RandomizerGUI::DialogProc(HWND hwnd, UINT msg, WPARAM wParam, L
                     rnd.rand_blind_trainers_ = IS_CHECKED(gui->cb_blind_trainers_);
                     rnd.rand_bike_everywhere_ = IS_CHECKED(gui->cb_bike_everywhere_);
                     rnd.rand_gap_map_everywhere_ = IS_CHECKED(gui->cb_gap_map_everywhere_);
+                    rnd.rand_costumes_ = GET_3STATE(gui->cb_costumes_);
 
                     gui->generate_share_code();
 
@@ -510,6 +511,7 @@ RandomizerGUI::RandomizerGUI(HINSTANCE hInstance)
     init_hwnd_member(cb_blind_trainers_, IDC_BLIND_TRAINERS);
     init_hwnd_member(cb_bike_everywhere_, IDC_BIKE_EVERYWHERE);
     init_hwnd_member(cb_gap_map_everywhere_, IDC_GAP_MAP_EVERYWHERE);
+    init_hwnd_member(cb_costumes_, IDC_COSTUMES);
 
     init_hwnd_member(progress_bar_, IDC_PROG_BAR);
 
@@ -566,6 +568,7 @@ RandomizerGUI::RandomizerGUI(HINSTANCE hInstance)
     set_tooltip(cb_blind_trainers_, L"Trainers will not initiate battle unless spoken to.");
     set_tooltip(cb_bike_everywhere_,L"Allow the use of the bike on all maps");
     set_tooltip(cb_gap_map_everywhere_,L"Allow the use of the gap map on all maps. /!\\This may break some events - use at your own risk!");
+    set_tooltip(cb_costumes_, L"This is a 3-state checkbox. Click twice to get to the \"middle\" state.\nChecked: randomized trainer puppet costumes\nMiddle: no wedding dresses");
 
     checkboxes_.push_back(cb_evolved_trainers_);
     checkboxes_.push_back(cb_skills_);
@@ -602,6 +605,7 @@ RandomizerGUI::RandomizerGUI(HINSTANCE hInstance)
     checkboxes_3state_.push_back(cb_encounters_);
     checkboxes_3state_.push_back(cb_starting_move_);
     checkboxes_3state_.push_back(cb_skillcards_);
+    checkboxes_3state_.push_back(cb_costumes_);
 
     SET_CHECKED(cb_evolved_trainers_, true);
 

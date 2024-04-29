@@ -77,6 +77,7 @@ private:
     HWND cb_blind_trainers_;
     HWND cb_bike_everywhere_;
     HWND cb_gap_map_everywhere_;
+    HWND cb_costumes_;
 
     HWND progress_bar_;
 
